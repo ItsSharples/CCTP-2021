@@ -143,22 +143,6 @@ def Operation(Operator, Arguments = []):
     # = {What to Substitute : To What} for each thing to substitute
     Substitutions = {Args[index] : Arguments[index] for index in range(len(Args))}
 
-    Fudge_Values = {}
-    print("Subs", Substitutions)
-    # Find any Fudges
-    for List in [Reqs, Efct]:
-        for Type in List:
-            for req in List[Type]:
-                for x in req:
-                    if x in Known_Fudges and x not in Substitutions:
-                        print(x)
-                        print(req)
-                        Fudge_Values[x] = req
-                        print(Fudge_Values)
-                        # Find the Value
-                        thing = [val for val in State[Type] if req[0] == val[0]][0]
-                        Substitutions[x] = thing[1]
-
     def check_and_substitute(x):
         # Return the Substitution if there is one, else return the original value
         return Substitutions[x] if x in Substitutions else x
@@ -178,6 +162,33 @@ def Operation(Operator, Arguments = []):
 
         # If I want to out Not, create a List, else just return the tuple
         return Tuple if not out_Not else [Tuple, Not]
+
+    # Find any Fudges
+    for List in [Reqs, Efct]:
+        for Type in List:
+            for req in List[Type]:
+                # Substitute any Known Values
+                req = check_and_substitute_tuple(req)
+                # Find any unknown values left over
+                unknowns = [val in Known_Fudges for val in req]
+                # If they're all unknown, I have no clue what it should be
+                if all(unknowns):
+                    print("Many Unknowns")
+                    continue
+                # If some are unknown, Find them out
+                if any(unknowns):
+                    print("Some Unknowns")
+                    for x in req:
+                        x = check_and_substitute(x)
+                        if x in Known_Fudges:
+                            # Find the Value
+                            thing = [val for val in State[Type] if req[0] == val[0]][0]
+                            # Update the Substitutions
+                            Substitutions[x] = thing[1]
+                    continue
+                # There are no unknowns here
+                continue
+
 
     # Check Requirements
     for require_type in Reqs:
