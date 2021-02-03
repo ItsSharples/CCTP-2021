@@ -399,7 +399,7 @@ def find_options():
 
         # Get the Number of Guesses for each Index
         count = [len(Guess) for Guess in Guesses]
-        # For each index
+        # Adjust each Guess Index to be equal in length
         for index in range(len(count)):
             # Remove it from the Number of Guesses
             tmp = copy.deepcopy(count)
