@@ -309,7 +309,6 @@ def Operation(Operator, Arguments = []):
                 req = check_and_substitute(req)
             else:
                 req = check_and_substitute_tuple(req)
-            print(State[require_type])
             if req not in State[require_type]:
                 print("Cannot Complete Requirement")
                 print(f"Requirement: {req}")
