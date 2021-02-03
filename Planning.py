@@ -1,4 +1,7 @@
+# Copy Objects
 import copy
+# Multiply Arrays
+import math
 """
 ["at", "Monkey", "A"]
 ["height", "Monkey", "Low"]
@@ -45,9 +48,9 @@ Operators = {
           "Effect" : {"have" : [("Monkey", "grab")]}
           },
 
-    "Carry" : {"Arguments" : ["c"],
-          "Requires":{"at" : [("Monkey", "x"), ("c", "y")], "have" : [("Monkey", "c")]},
-          "Effect" : {"at" : [("c", "x"), ("c", "y", "Not")]}
+    "Carry" : {"Arguments" : ["carry"],
+          "Requires":{"at" : [("Monkey", "x"), ("carry", "y")], "have" : [("Monkey", "carry")]},
+          "Effect" : {"at" : [("carry", "x"), ("carry", "y", "Not")]}
           }
     }
 
@@ -168,7 +171,7 @@ def Check_Operation(Operator, Arguments = []):
 
     # Fulfil Requirements
     if len(Args) != len(Arguments):
-        print("Uh oh")
+        #print("Uh oh")
         return False
 
     # Define Substitutions
@@ -176,6 +179,12 @@ def Check_Operation(Operator, Arguments = []):
     Substitutions = {Args[index] : Arguments[index] for index in range(len(Args))}
 
     def check_and_substitute(x):
+        if type(req) != tuple:
+            return check_and_substitute_value(req)
+        else:
+            return check_and_substitute_tuple(req)
+
+    def check_and_substitute_value(x):
         # Return the Substitution if there is one, else return the original value
         return Substitutions[x] if x in Substitutions else x
     
@@ -199,7 +208,8 @@ def Check_Operation(Operator, Arguments = []):
     for Type in Reqs:
         for req in Reqs[Type]:
             # Substitute any Known Values
-            req = check_and_substitute_tuple(req)
+            req = check_and_substitute(req)
+
             # Find any unknown values left over
             unknowns = [val in Known_Fudges for val in req]
             # If they're all unknown, I have no clue what it should be
@@ -210,12 +220,19 @@ def Check_Operation(Operator, Arguments = []):
             if any(unknowns):
                 #print("Some Unknowns")
                 for x in req:
-                    x = check_and_substitute(x)
+                    x = check_and_substitute_value(x)
                     if x in Known_Fudges:
+                        
+                        #print(x)
+                        #print(State[Type])
+                        
                         # Find the Value
-                        thing = [val for val in State[Type] if req[0] == val[0]][0]
+                        thing = [val for val in State[Type] if req[0] == val[0]]
+                        if len(thing) == 0:
+                            #print(f"Cannot find {req}")
+                            return False
                         # Update the Substitutions
-                        Substitutions[x] = thing[1]
+                        Substitutions[x] = thing[0][1]
                 continue
             # There are no unknowns here
             continue
@@ -224,11 +241,12 @@ def Check_Operation(Operator, Arguments = []):
     # Check Requirements
     for require_type in Reqs:
         for req in Reqs[require_type]:
-            req = check_and_substitute_tuple(req)
+            req = check_and_substitute(req)
             if req not in State[require_type]:
-                print("Cannot Complete Requirement")
-                print(f"Requirement: {req}")
-                print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
+                #print("Cannot Complete Check Requirement")
+                #print(f"Requirement: {req}")
+                #current_value = [val for val in State[require_type] if req[0] == val[0]]
+                #print(f"Current State: {current_value[:]}")
                 return False
 
     return True
@@ -252,6 +270,12 @@ def Operation(Operator, Arguments = []):
     Substitutions = {Args[index] : Arguments[index] for index in range(len(Args))}
 
     def check_and_substitute(x):
+        if type(req) != tuple:
+            return check_and_substitute_value(req)
+        else:
+            return check_and_substitute_tuple(req)
+
+    def check_and_substitute_value(x):
         # Return the Substitution if there is one, else return the original value
         return Substitutions[x] if x in Substitutions else x
     
@@ -276,10 +300,8 @@ def Operation(Operator, Arguments = []):
         for Type in List:
             for req in List[Type]:
                 # Substitute any Known Values
-                if type(req) != tuple:
-                    req = [check_and_substitute(req)]
-                else:
-                    req = check_and_substitute_tuple(req)
+                req = check_and_substitute(req)
+
                 # Find any unknown values left over
                 unknowns = [val in Known_Fudges for val in req]
                 # If they're all unknown, I have no clue what it should be
@@ -290,9 +312,8 @@ def Operation(Operator, Arguments = []):
                 if any(unknowns):
                     #print("Some Unknowns")
                     for x in req:
-                        x = check_and_substitute(x)
+                        x = check_and_substitute_value(x)
                         if x in Known_Fudges:
-                            print(x, req)
                             # Find the Value
                             thing = [val for val in State[Type] if req[0] == val[0]][0]
                             # Update the Substitutions
@@ -305,14 +326,12 @@ def Operation(Operator, Arguments = []):
     # Check Requirements
     for require_type in Reqs:
         for req in Reqs[require_type]:
-            if type(req) != tuple:
-                req = check_and_substitute(req)
-            else:
-                req = check_and_substitute_tuple(req)
+            req = check_and_substitute(req)
             if req not in State[require_type]:
-                print("Cannot Complete Requirement")
+                print("Cannot Complete Act Requirement")
                 print(f"Requirement: {req}")
                 print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
+                print(Substitutions)
                 return False
 
 
@@ -335,40 +354,115 @@ def Operation(Operator, Arguments = []):
     # Return Success
     return True
 
+def get_at(Thing = "Monkey"):
+    return [pair[1] for pair in State["at"] if Thing in pair][0]
 
 build_state()
 save_state(State, "Start")
 build_goal(State)
-print(distance_between(State, Saved_States["Goal"]))
+#print(distance_between(State, Saved_States["Goal"]))
 
+def find_options():
+    current_options = {}
+    ## Assemble List of Possible Actions in this current state
+    for operator in Operators:
+        #print("Checking", operator)
+        args = Operators[operator]["Arguments"]
+        #print(args)
+
+        ## I can guess what things I can put into each Arg Spot
+        # X is the Monkey's Position
+        monkey_pos = get_at("Monkey")
+        # Y is not the Monkey's Position
+        not_monkey_pos = [loc for loc in Known_Locations if loc != monkey_pos]
+        # Things
+        things = Known_Things
+
+        Guessimoto = []
+        Guesses = []
+        for index in range(len(args)):
+            arg = args[index]
+            Guesses.append(None)
+
+            if arg == "x":
+                Guesses[index] = monkey_pos
+                
+            if arg == "y":
+                Guesses[index] = not_monkey_pos
+
+            if arg not in ["x","y"]:
+                Guesses[index] = list(things)
+            
+            continue
+
+        complete_guesses = [None] * len(Guesses)
+
+        # Get the Number of Guesses for each Index
+        count = [len(Guess) for Guess in Guesses]
+        # For each index
+        for index in range(len(count)):
+            # Remove it from the Number of Guesses
+            tmp = copy.deepcopy(count)
+            del tmp[index]
+            # Compute and Apply the amount to multiply to make all Indices the same length
+            complete_guesses[index] = list(Guesses[index]) * math.prod(tmp)
+
+        good_args = []
+        # For the total length of arguments
+        for index in range(math.prod(count)):
+            # Transfer Guesses from n x m arrays, to m x n arrays
+            out = []
+            # For each index
+            for jndex in range(len(complete_guesses)):
+                out.append(complete_guesses[jndex][index])
+            good_args.append(out)
+
+        # Try each good arg
+        valid_args = []
+        for args in good_args:
+            if Check_Operation(operator, args):
+                valid_args.append(args)
+
+        current_options[operator] = valid_args
+
+
+    return current_options
+
+          
 save_state(State, "Last")
-ls = [pair[1] for pair in State["at"] if "Monkey" in pair][0]
-print("Monkey is currently at:", ls)
+ls = get_at("Monkey")
+print("Monkey is currently at:", get_at("Monkey"))
 Possible_New_Locations = [loc for loc in Known_Locations if loc != ls]
 for new_loc in Possible_New_Locations:
     
     Operation("Go", ["A", new_loc]);build_goal(State)
-    print(f"Score if Go from \"A\" to \"{new_loc}\": {distance_between(State, Saved_States['Goal'])}")
+    #print(f"Score if Go from \"A\" to \"{new_loc}\": {distance_between(State, Saved_States['Goal'])}")
     save_state(State, f"Go {'A'},{new_loc}")
     State = load_state("Last")
 
 print("End Search")
 
+def debug_text():
+    print("----------------")
+    print("Monkey is currently at:", get_at("Monkey"))
+    print(f"Current Options: {find_options()}")
+    print("Score", distance_between(State, Saved_States["Goal"]))
+
 State = load_state("Start")
 Operation("Go", ["A", "C"]);build_goal(State)
-print("Score", distance_between(State, Saved_States["Goal"]))
+debug_text()
 Operation("Push", ["Box", "C", "B"]);build_goal(State)
-print("Score", distance_between(State, Saved_States["Goal"]))
+debug_text()
 Operation("ClimbUp", ["Box"]);build_goal(State)
-print("Score", distance_between(State, Saved_States["Goal"]))
+debug_text()
 Operation("Grasp", ["Bananas"]);build_goal(State)
-print("Score", distance_between(State, Saved_States["Goal"]))
+debug_text()
 Operation("ClimbDown", ["Box"]);build_goal(State)
-print("Score", distance_between(State, Saved_States["Goal"]))
+debug_text()
 Operation("Go", ["B", "A"]);build_goal(State)
-print("Score", distance_between(State, Saved_States["Goal"]))
+debug_text()
 Operation("Carry", ["Bananas"]);build_goal(State)
-print("Score", distance_between(State, Saved_States["Goal"]))
+debug_text()
 print(check_goal())
 #print(State)
 
