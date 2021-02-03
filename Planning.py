@@ -25,24 +25,24 @@ Operators = {
             "Effect" : {"at" : [("Monkey", "y"), ("Monkey", "x", "Not")]}
             },
 
-    "Push" : {"Arguments" : ["b","x","y"],
-              "Requires":{"at" : [("Monkey","x"), ("b","x")], "height" : [("Monkey","Low"), ("b", "Low")], "pushable" : ["b"]},
-              "Effect" : {"at" : [("b","y"),("Monkey","y"), ("b","x", "Not"), ("Monkey","x", "Not")]}
+    "Push" : {"Arguments" : ["push", "x", "y"],
+              "Requires":{"at" : [("Monkey","x"), ("push","x")], "height" : [("Monkey","Low"), ("push", "Low")], "pushable" : ["push"]},
+              "Effect" : {"at" : [("push","y"), ("Monkey","y"), ("push","x", "Not"), ("Monkey","x", "Not")]}
               },
 
-    "ClimbUp" : {"Arguments" : ["b"],
-          "Requires":{"at" : [("Monkey","x"), ("b","x")], "height" : [("Monkey","Low"), ("b", "Low")], "climbable" : ["b"]},
-          "Effect" : {"height" : [("Monkey", "High"), ("Monkey", "Low", "Not")], "on" : [("Monkey", "Box")]}
+    "ClimbUp" : {"Arguments" : ["climb"],
+          "Requires":{"at" : [("Monkey","x"), ("climb","x")], "height" : [("Monkey","Low"), ("climb", "Low")], "climbable" : ["climb"]},
+          "Effect" : {"height" : [("Monkey", "High"), ("Monkey", "Low", "Not")], "on" : [("Monkey", "climb")]}
           },
 
-    "ClimbDown" : {"Arguments" : ["b"],
-          "Requires":{"at" : [("Monkey","x"), ("b","x")], "height" : [("Monkey","High"), ("b", "Low")], "climbable" : ["b"]},
-          "Effect" : {"height" : [("Monkey", "High", "Not"), ("Monkey", "Low")], "on" : [("Monkey", "Box", "Not")]}
+    "ClimbDown" : {"Arguments" : ["climb"],
+          "Requires":{"at" : [("Monkey","x"), ("climb","x")], "height" : [("Monkey","High"), ("climb", "Low")], "climbable" : ["climb"]},
+          "Effect" : {"height" : [("Monkey", "High", "Not"), ("Monkey", "Low")], "on" : [("Monkey", "climb", "Not")]}
           },
 
-    "Grasp" : {"Arguments" : ["b"],
-          "Requires":{"at" : [("Monkey","x"), ("b","x")], "height" : [("Monkey","h"), ("b", "h")], "graspable" : ["b"]},
-          "Effect" : {"have" : [("Monkey", "b")]}
+    "Grasp" : {"Arguments" : ["grab"],
+          "Requires":{"at" : [("Monkey","x"), ("grab","x")], "height" : [("Monkey","h"), ("grab", "h")], "graspable" : ["grab"]},
+          "Effect" : {"have" : [("Monkey", "grab")]}
           },
 
     "Carry" : {"Arguments" : ["c"],
@@ -55,6 +55,33 @@ Goal = {"have" : [("Monkey", "Bananas")], "at" : [("Monkey", "A")]}
 
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
+
+Known_Things = set()
+Known_Locations = set()
+def find_things():
+    for Dict in [State, Goal]:
+        for List in Dict:
+            for thing in Dict[List]:
+                if(type(thing) == tuple):
+                    Known_Things.add(thing[0])
+                    if List == "at":
+                        Known_Locations.add(thing[1])
+                else:
+                    Known_Things.add(thing)
+    ## For Now, Don't care about Operations, The State and Goal is all we care about
+##    for Op in Operators.values():
+##        #print(Op)
+##        Args = Op["Arguments"]
+##        Substitutions = {}
+##        Reqs = Op["Requires"]
+##        Efcts = Op["Effect"]
+##
+##        for Req in Reqs.values():
+##            print(Req)
+##        for Efct in Efcts.values():
+##            print(Efct)
+
+find_things()
 
 Saved_States = {}
 
@@ -122,9 +149,90 @@ def save_state(State, Name = ""):
     Saved_States[Name] = copy.deepcopy(State)
     return Saved_States[Name]
 
+def load_state(Name):
+    State = Saved_States[Name]
+    return State
+
 def check_goal():
     # If all goal outcomes are in the current state
     return all([True for outcome in Goal[kind] if outcome in State[kind]] for kind in Goal)
+
+
+## TODO, Join Check and Do Together
+def Check_Operation(Operator, Arguments = []):
+     #print(f"Operation: {Operator}")
+    Op = Operators[Operator]
+    Args = Op["Arguments"]
+    Substitutions = {}
+    Reqs = Op["Requires"]
+
+    # Fulfil Requirements
+    if len(Args) != len(Arguments):
+        print("Uh oh")
+        return False
+
+    # Define Substitutions
+    # = {What to Substitute : To What} for each thing to substitute
+    Substitutions = {Args[index] : Arguments[index] for index in range(len(Args))}
+
+    def check_and_substitute(x):
+        # Return the Substitution if there is one, else return the original value
+        return Substitutions[x] if x in Substitutions else x
+    
+    def check_and_substitute_tuple(Tuple, out_Not = False):
+        outlist = [Substitutions[x] if x in Substitutions else x for x in Tuple]
+        Not = False
+        # Remove all modifier values ("Not")
+        for val in outlist:
+            if val == "Not":
+                Not = True
+                del outlist[outlist.index(val)]
+                
+        Tuple = tuple(outlist)
+        if len(Tuple) == 1:
+            Tuple = (Tuple[0])
+
+        # If I want to out Not, create a List, else just return the tuple
+        return Tuple if not out_Not else [Tuple, Not]
+
+    # Find any Fudges
+    for Type in Reqs:
+        for req in Reqs[Type]:
+            # Substitute any Known Values
+            req = check_and_substitute_tuple(req)
+            # Find any unknown values left over
+            unknowns = [val in Known_Fudges for val in req]
+            # If they're all unknown, I have no clue what it should be
+            if all(unknowns):
+                #print("Many Unknowns")
+                continue
+            # If some are unknown, Find them out
+            if any(unknowns):
+                #print("Some Unknowns")
+                for x in req:
+                    x = check_and_substitute(x)
+                    if x in Known_Fudges:
+                        # Find the Value
+                        thing = [val for val in State[Type] if req[0] == val[0]][0]
+                        # Update the Substitutions
+                        Substitutions[x] = thing[1]
+                continue
+            # There are no unknowns here
+            continue
+
+
+    # Check Requirements
+    for require_type in Reqs:
+        for req in Reqs[require_type]:
+            req = check_and_substitute_tuple(req)
+            if req not in State[require_type]:
+                print("Cannot Complete Requirement")
+                print(f"Requirement: {req}")
+                print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
+                return False
+
+    return True
+
 
 def Operation(Operator, Arguments = []):
     #print(f"Operation: {Operator}")
@@ -137,7 +245,7 @@ def Operation(Operator, Arguments = []):
     # Fulfil Requirements
     if len(Args) != len(Arguments):
         print("Uh oh")
-        return
+        return False
 
     # Define Substitutions
     # = {What to Substitute : To What} for each thing to substitute
@@ -168,19 +276,23 @@ def Operation(Operator, Arguments = []):
         for Type in List:
             for req in List[Type]:
                 # Substitute any Known Values
-                req = check_and_substitute_tuple(req)
+                if type(req) != tuple:
+                    req = [check_and_substitute(req)]
+                else:
+                    req = check_and_substitute_tuple(req)
                 # Find any unknown values left over
                 unknowns = [val in Known_Fudges for val in req]
                 # If they're all unknown, I have no clue what it should be
                 if all(unknowns):
-                    print("Many Unknowns")
+                    #print("Many Unknowns")
                     continue
                 # If some are unknown, Find them out
                 if any(unknowns):
-                    print("Some Unknowns")
+                    #print("Some Unknowns")
                     for x in req:
                         x = check_and_substitute(x)
                         if x in Known_Fudges:
+                            print(x, req)
                             # Find the Value
                             thing = [val for val in State[Type] if req[0] == val[0]][0]
                             # Update the Substitutions
@@ -189,16 +301,20 @@ def Operation(Operator, Arguments = []):
                 # There are no unknowns here
                 continue
 
-
+    
     # Check Requirements
     for require_type in Reqs:
         for req in Reqs[require_type]:
-            req = check_and_substitute_tuple(req)
+            if type(req) != tuple:
+                req = check_and_substitute(req)
+            else:
+                req = check_and_substitute_tuple(req)
+            print(State[require_type])
             if req not in State[require_type]:
                 print("Cannot Complete Requirement")
                 print(f"Requirement: {req}")
                 print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
-                return
+                return False
 
 
     # Act Out the Operation
@@ -217,26 +333,43 @@ def Operation(Operator, Arguments = []):
                 if not Not:
                     compare.append(thing)
 
+    # Return Success
+    return True
+
 
 build_state()
 save_state(State, "Start")
 build_goal(State)
 print(distance_between(State, Saved_States["Goal"]))
 
+save_state(State, "Last")
+ls = [pair[1] for pair in State["at"] if "Monkey" in pair][0]
+print("Monkey is currently at:", ls)
+Possible_New_Locations = [loc for loc in Known_Locations if loc != ls]
+for new_loc in Possible_New_Locations:
+    
+    Operation("Go", ["A", new_loc]);build_goal(State)
+    print(f"Score if Go from \"A\" to \"{new_loc}\": {distance_between(State, Saved_States['Goal'])}")
+    save_state(State, f"Go {'A'},{new_loc}")
+    State = load_state("Last")
+
+print("End Search")
+
+State = load_state("Start")
 Operation("Go", ["A", "C"]);build_goal(State)
-print(distance_between(State, Saved_States["Goal"]))
+print("Score", distance_between(State, Saved_States["Goal"]))
 Operation("Push", ["Box", "C", "B"]);build_goal(State)
-print(distance_between(State, Saved_States["Goal"]))
+print("Score", distance_between(State, Saved_States["Goal"]))
 Operation("ClimbUp", ["Box"]);build_goal(State)
-print(distance_between(State, Saved_States["Goal"]))
+print("Score", distance_between(State, Saved_States["Goal"]))
 Operation("Grasp", ["Bananas"]);build_goal(State)
-print(distance_between(State, Saved_States["Goal"]))
+print("Score", distance_between(State, Saved_States["Goal"]))
 Operation("ClimbDown", ["Box"]);build_goal(State)
-print(distance_between(State, Saved_States["Goal"]))
+print("Score", distance_between(State, Saved_States["Goal"]))
 Operation("Go", ["B", "A"]);build_goal(State)
-print(distance_between(State, Saved_States["Goal"]))
+print("Score", distance_between(State, Saved_States["Goal"]))
 Operation("Carry", ["Bananas"]);build_goal(State)
-print(distance_between(State, Saved_States["Goal"]))
+print("Score", distance_between(State, Saved_States["Goal"]))
 print(check_goal())
-print(State)
+#print(State)
 
