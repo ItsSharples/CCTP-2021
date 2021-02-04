@@ -51,10 +51,15 @@ Operators = {
     "Carry" : {"Arguments" : ["carry"],
           "Requires":{"at" : [("Monkey", "x"), ("carry", "y")], "have" : [("Monkey", "carry")]},
           "Effect" : {"at" : [("carry", "x"), ("carry", "y", "Not")]}
-          }
+          },
+
+    "Pull Down" : {"Arguments" : ["carry"],
+      "Requires":{"height" : [("Monkey", "High"), ("carry", "High")], "have" : [("Monkey", "carry")]},
+      "Effect" : {"height" : [("carry", "Low"), ("carry", "Low", "Not")]}
+      }
     }
 
-Goal = {"have" : [("Monkey", "Bananas")], "at" : [("Monkey", "A")]}
+Goal = {"have" : [("Monkey", "Bananas")], "at" : [("Monkey", "A")], "height" : [("Monkey", "Low")]}
 
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
@@ -150,7 +155,7 @@ def distance_between(State_A, State_B):
 def save_state(State, Name = ""):
     #print(f"Saving State with name: \"{Name}\"")
     if Name == "": Name = str(len(Saved_States))
-    if Name in Saved_States.keys(): print(f"Overriding \"{Name}\"")
+    #if Name in Saved_States.keys(): print(f"Overriding \"{Name}\"")
     Saved_States[Name] = copy.deepcopy(State)
 
     #print(f"State \"{Name}\" now looks like: {State}")
@@ -163,14 +168,15 @@ def load_state(Name):
     #print(f"State \"{Name}\" looks like: {State}")
     return State
 
-def check_goal():
+def check_goal(State):
     # If all goal outcomes are in the current state
     return all([True for outcome in Goal[kind] if outcome in State[kind]] for kind in Goal)
 
 
 ## TODO, Join Check and Do Together
 def Check_Operation(State, Operator, Arguments = []):
-     #print(f"Operation: {Operator}")
+
+    #print(f"Operation: {Operator}, Arguments: {Arguments}")
     Op = Operators[Operator]
     Args = Op["Arguments"]
     Substitutions = {}
@@ -236,7 +242,7 @@ def Check_Operation(State, Operator, Arguments = []):
                         # Find the Value
                         thing = [val for val in State[Type] if req[0] == val[0]]
                         if len(thing) == 0:
-                            #print(f"Cannot find {req}")
+                            # print(f"Cannot find {req}")
                             return False
                         # Update the Substitutions
                         Substitutions[x] = thing[0][1]
@@ -250,10 +256,8 @@ def Check_Operation(State, Operator, Arguments = []):
         for req in Reqs[require_type]:
             req = check_and_substitute(req)
             if req not in State[require_type]:
-                #print("Cannot Complete Check Requirement")
-                #print(f"Requirement: {req}")
-                #current_value = [val for val in State[require_type] if req[0] == val[0]]
-                #print(f"Current State: {current_value[:]}")
+                current_value = [val for val in State[require_type] if req[0] == val[0]]
+                #print(f"""Cannot Complete Check Requirement\n\tRequirement: {req}\n\tCurrent State: {current_value[:]}""")
                 return False
 
     return True
@@ -361,7 +365,7 @@ def Operation(State, Operator, Arguments = []):
     # Return Success
     return True
 
-def get_at(Thing = "Monkey"):
+def get_at(State, Thing = "Monkey"):
     return [pair[1] for pair in State["at"] if Thing in pair][0]
 
 build_state()
@@ -369,7 +373,9 @@ save_state(State, "Start")
 build_goal(State)
 #print(distance_between(State, Saved_States["Goal"]))
 
-def find_options():
+
+## TODO Reduce the Cost of Polling this Multiple Times
+def find_options(State):
     current_options = {}
     ## Assemble List of Possible Actions in this current state
     for operator in Operators:
@@ -379,7 +385,7 @@ def find_options():
 
         ## I can guess what things I can put into each Arg Spot
         # X is the Monkey's Position
-        monkey_pos = get_at("Monkey")
+        monkey_pos = get_at(State, "Monkey")
         # Y is not the Monkey's Position
         not_monkey_pos = [loc for loc in Known_Locations if loc != monkey_pos]
         # Things
@@ -424,55 +430,109 @@ def find_options():
                 out.append(complete_guesses[jndex][index])
             good_args.append(out)
 
+        #print(f"{operator}\n{get_at(State,'Monkey')}") 
+        #print(f"Good: {good_args}")
         # Try each good arg
         valid_args = []
         for args in good_args:
             if Check_Operation(State, operator, args):
                 valid_args.append(args)
 
-        current_options[operator] = valid_args
+        #print(f"Args: {valid_args}")
 
+        current_options[operator] = valid_args
 
     return current_options
 
+def simple_score(State):
+    opt = find_options(State)
+    return len([thing for option in opt for thing in opt[option]])
+
 def debug_text():
     #print("-------------------")
-    print("Monkey is currently at:", get_at("Monkey"))
-    print(f"Current Options: {find_options()}")
-    print(f"Num Options {len([thing for option in find_options() for thing in find_options()[option]])}")
+    print("Monkey is currently at:", get_at(State, "Monkey"))
+    print(f"Current Options: {find_options(State)}")
+    print(f"Num Options {simple_score(State)}")
     print("Score", distance_between(State, Saved_States["Goal"]))
 
           
 save_state(State, "Last")
-ls = get_at("Monkey")
-print("Monkey is currently at:", get_at("Monkey"))
+#ls = get_at("Monkey")
+print("Monkey is currently at:", get_at(State, "Monkey"))
 
-options = find_options()
+options = find_options(State)
 print("--- Start State ---")
 debug_text()
 print("------Options------")
-def plan(State, Name):
-    print(f"Planning {Name}")
+global best_plan, plans
+plans = 0
+def plan(State, Name, limit = 8, best_len = 99999):
+    global best_plan, plans
+    plans += 1
+    if limit < 0:
+        #print("At Limit")
+        return best_len
+
+    if limit < 4:
+        # Start Caring about The Scores
+        simple = simple_score(State)
+        distance = distance_between(State, Saved_States["Goal"])
+        score = simple + distance
+        if simple > 3:
+            #print("Scores:", distance, simple)
+            #print("State:", Name)
+            if distance > 3:
+                return best_len
+
+    #print(f"Planning {Name}")
     save_state(State, Name)
     State = load_state(Name)
+    build_goal(State)
 
-    print("-------------------")
-    options = find_options()
+    #print("-------------------")
+    options = find_options(State)
+
+    #print("Monkey is currently at:", get_at(State, "Monkey"))
+    #print(options)
+    #print(State)
+
     for operator in options:
         for args in options[operator]:
-            print(f"Operation: {operator} {args}")
+            #print(f"Operation: {operator} {args}")
             State = load_state(Name)
             Operation(State, operator, args)
-            save_state(State)
+            Plan_Name = f"{Name} {operator} {args}"
+            save_state(State, Plan_Name)
+
+            if check_goal(State):
+                new_len = len(Plan_Name)
+                #print(best_len, new_len)
+                if new_len < best_len:
+                    print(f"FOUND GOAL AT For {Name} {operator} {args}")
+                    best_len = new_len
+                    best_plan = Plan_Name
+
+                return best_len
+
+            best_len = plan(State, f"{Name} {operator} {args}", limit - 1, best_len)
+            #print(f"""For {Name} {operator} {args}\n\tSimple Score: {simple_score(State)}\n\tScore: distance_between(State, {Saved_States["Goal"]}""")
+
+
+                
+            
             
             #print("Build Goal")
             #build_goal(State)
             #print("Goal Built")
             #debug_text()
+    return best_len
 
 print(State)
 print("-----PLANNING------")
-plan(State, "Last")
+length = plan(State, "Start")
+print("Len", length)
+print(best_plan)
+print(Saved_States[best_plan])
 print("----End Options----")
 print("End Search")
 
