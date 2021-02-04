@@ -148,12 +148,19 @@ def distance_between(State_A, State_B):
     return len(missing)
 
 def save_state(State, Name = ""):
+    #print(f"Saving State with name: \"{Name}\"")
     if Name == "": Name = str(len(Saved_States))
+    if Name in Saved_States.keys(): print(f"Overriding \"{Name}\"")
     Saved_States[Name] = copy.deepcopy(State)
+
+    #print(f"State \"{Name}\" now looks like: {State}")
     return Saved_States[Name]
 
 def load_state(Name):
-    State = Saved_States[Name]
+    #print(f"Loading State with name: \"{Name}\"")
+    State = copy.deepcopy(Saved_States[Name])
+
+    #print(f"State \"{Name}\" looks like: {State}")
     return State
 
 def check_goal():
@@ -162,7 +169,7 @@ def check_goal():
 
 
 ## TODO, Join Check and Do Together
-def Check_Operation(Operator, Arguments = []):
+def Check_Operation(State, Operator, Arguments = []):
      #print(f"Operation: {Operator}")
     Op = Operators[Operator]
     Args = Op["Arguments"]
@@ -252,7 +259,7 @@ def Check_Operation(Operator, Arguments = []):
     return True
 
 
-def Operation(Operator, Arguments = []):
+def Operation(State, Operator, Arguments = []):
     #print(f"Operation: {Operator}")
     Op = Operators[Operator]
     Args = Op["Arguments"]
@@ -420,7 +427,7 @@ def find_options():
         # Try each good arg
         valid_args = []
         for args in good_args:
-            if Check_Operation(operator, args):
+            if Check_Operation(State, operator, args):
                 valid_args.append(args)
 
         current_options[operator] = valid_args
@@ -428,41 +435,72 @@ def find_options():
 
     return current_options
 
+def debug_text():
+    #print("-------------------")
+    print("Monkey is currently at:", get_at("Monkey"))
+    print(f"Current Options: {find_options()}")
+    print(f"Num Options {len([thing for option in find_options() for thing in find_options()[option]])}")
+    print("Score", distance_between(State, Saved_States["Goal"]))
+
           
 save_state(State, "Last")
 ls = get_at("Monkey")
 print("Monkey is currently at:", get_at("Monkey"))
-Possible_New_Locations = [loc for loc in Known_Locations if loc != ls]
-for new_loc in Possible_New_Locations:
-    
-    Operation("Go", ["A", new_loc]);build_goal(State)
-    #print(f"Score if Go from \"A\" to \"{new_loc}\": {distance_between(State, Saved_States['Goal'])}")
-    save_state(State, f"Go {'A'},{new_loc}")
-    State = load_state("Last")
 
+options = find_options()
+print("--- Start State ---")
+debug_text()
+print("------Options------")
+def plan(State, Name):
+    print(f"Planning {Name}")
+    save_state(State, Name)
+    State = load_state(Name)
+
+    print("-------------------")
+    options = find_options()
+    for operator in options:
+        for args in options[operator]:
+            print(f"Operation: {operator} {args}")
+            State = load_state(Name)
+            Operation(State, operator, args)
+            save_state(State)
+            
+            #print("Build Goal")
+            #build_goal(State)
+            #print("Goal Built")
+            #debug_text()
+
+print(State)
+print("-----PLANNING------")
+plan(State, "Last")
+print("----End Options----")
 print("End Search")
 
-def debug_text():
-    print("----------------")
-    print("Monkey is currently at:", get_at("Monkey"))
-    print(f"Current Options: {find_options()}")
-    print("Score", distance_between(State, Saved_States["Goal"]))
 
-State = load_state("Start")
-Operation("Go", ["A", "C"]);build_goal(State)
-debug_text()
-Operation("Push", ["Box", "C", "B"]);build_goal(State)
-debug_text()
-Operation("ClimbUp", ["Box"]);build_goal(State)
-debug_text()
-Operation("Grasp", ["Bananas"]);build_goal(State)
-debug_text()
-Operation("ClimbDown", ["Box"]);build_goal(State)
-debug_text()
-Operation("Go", ["B", "A"]);build_goal(State)
-debug_text()
-Operation("Carry", ["Bananas"]);build_goal(State)
-debug_text()
-print(check_goal())
-#print(State)
+##Possible_New_Locations = [loc for loc in Known_Locations if loc != ls]
+##for new_loc in Possible_New_Locations:
+##    
+##    Operation("Go", ["A", new_loc]);build_goal(State)
+##    #print(f"Score if Go from \"A\" to \"{new_loc}\": {distance_between(State, Saved_States['Goal'])}")
+##    save_state(State, f"Go {'A'},{new_loc}")
+##    State = load_state("Last")
+
+
+##State = load_state("Start")
+##Operation("Go", ["A", "C"]);build_goal(State)
+##debug_text()
+##Operation("Push", ["Box", "C", "B"]);build_goal(State)
+##debug_text()
+##Operation("ClimbUp", ["Box"]);build_goal(State)
+##debug_text()
+##Operation("Grasp", ["Bananas"]);build_goal(State)
+##debug_text()
+##Operation("ClimbDown", ["Box"]);build_goal(State)
+##debug_text()
+##Operation("Go", ["B", "A"]);build_goal(State)
+##debug_text()
+##Operation("Carry", ["Bananas"]);build_goal(State)
+##debug_text()
+##print(check_goal())
+##print(State)
 
