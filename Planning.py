@@ -3,67 +3,104 @@ import copy
 # Multiply Arrays
 import math
 """
-["at", "Monkey", "A"]
-["height", "Monkey", "Low"]
+["at", "Actor", "A"]
+["height", "Actor", "Low"]
 ["pushable", "Box"] #Always True
 ["climbable", "Box"] #Always True
-["graspable", "Bananas"] #Always True
+["graspable", "Lightbulb"] #Always True
 """
 
 ## This System Differs from other Planners, because it combines Qualities together, eg. There is a single object for all "at" values.
 
 State = {
-    "at" : [("Monkey", "A"),("Bananas", "B"), ("Box", "C")],
-    "height" : [("Monkey", "Low"),("Bananas", "High"), ("Box", "Low")],
+    "at" : [("Actor", "A"),("Broken", "B"), ("Box", "C"), ("Working", "D")],
+    "height" : [("Actor", "Low"),("Broken", "High"), ("Box", "Low"), ("Working", "High")],
     "pushable" : ["Box"], # List of True
     "climbable" : ["Box"], # List of True
-    "graspable" : ["Bananas"] # List of True
+    "graspable" : ["Working", "Broken"] # List of True
     }
 
 ## TODO Think about Held Objects following the Holder
 
 Operators = {
+# Move Actor from x to y
     "Go" : {"Arguments" : ["x", "y"],
-            "Requires": {"at" : [("Monkey", "x")], "height" : [("Monkey", "Low")]},
-            "Effect" : {"at" : [("Monkey", "y"), ("Monkey", "x", "Not")]}
+            "Requires": {"at" : [("Actor", "x")], "height" : [("Actor", "Low")]},
+            "Effect" : {"at" : [("Actor", "y"), ("Actor", "x", "Not")]}
             },
-
+# Push "push" from x to y
     "Push" : {"Arguments" : ["push", "x", "y"],
-              "Requires":{"at" : [("Monkey","x"), ("push","x")], "height" : [("Monkey","Low"), ("push", "Low")], "pushable" : ["push"]},
-              "Effect" : {"at" : [("push","y"), ("Monkey","y"), ("push","x", "Not"), ("Monkey","x", "Not")]}
+              "Requires":{"at" : [("Actor","x"), ("push","x")], "height" : [("Actor","Low"), ("push", "Low")], "pushable" : ["push"]},
+              "Effect" : {"at" : [("push","y"), ("Actor","y"), ("push","x", "Not"), ("Actor","x", "Not")]}
               },
-
+# Climb Up "climb"
     "ClimbUp" : {"Arguments" : ["climb"],
-          "Requires":{"at" : [("Monkey","x"), ("climb","x")], "height" : [("Monkey","Low"), ("climb", "Low")], "climbable" : ["climb"]},
-          "Effect" : {"height" : [("Monkey", "High"), ("Monkey", "Low", "Not")], "on" : [("Monkey", "climb")]}
+          "Requires":{
+              "at" : [("Actor","x"), ("climb","x")],
+              "height" : [("Actor", "Low"), ("climb", "Low")],
+              "climbable" : ["climb"]
+              },
+          "Effect" : {
+              "height" : [("Actor", "High"), ("Actor", "Low", "Not")],
+              "on" : [("Actor", "climb")]
+              }
           },
-
+# Climb Down "climb"
     "ClimbDown" : {"Arguments" : ["climb"],
-          "Requires":{"at" : [("Monkey","x"), ("climb","x")], "height" : [("Monkey","High"), ("climb", "Low")], "climbable" : ["climb"]},
-          "Effect" : {"height" : [("Monkey", "High", "Not"), ("Monkey", "Low")], "on" : [("Monkey", "climb", "Not")]}
+          "Requires":{
+              "at" : [("Actor","x"), ("climb","x")],
+              "height" : [("Actor","High"), ("climb", "Low")],
+              "climbable" : ["climb"]
+              },
+          "Effect" : {
+              "height" : [("Actor", "Low"), ("Actor", "High", "Not")],
+              "on" : [("Actor", "climb", "Not")]
+              }
           },
-
+# Pick up "grab"
     "Grasp" : {"Arguments" : ["grab"],
-          "Requires":{"at" : [("Monkey","x"), ("grab","x")], "height" : [("Monkey","h"), ("grab", "h")], "graspable" : ["grab"]},
-          "Effect" : {"have" : [("Monkey", "grab")]}
+          "Requires":{
+              "at" : [("Actor","x"), ("grab","x")],
+              "height" : [("Actor","h"), ("grab", "h")],
+              "graspable" : ["grab"]
+              },
+          "Effect" : {
+              "have" : [("Actor", "grab")],
+              "at":[("grab", "Inventory"), ("grab", "x", "Not")],
+              "height":[("grab", "NA"), ("grab", "h", "Not")]
+              }
           },
-
+# Put down "drop"
+    # "Drop" : {"Arguments" : ["drop"],
+    #       "Requires":{"have" : [("Actor", "drop")]},
+    #       "Effect" : {
+    #           "have" : [("Actor", "drop", "Not")],
+    #           "at" : [("drop","x"), ("drop", "Inventory", "Not")],
+    #           "height" : [("drop", "h"), ("drop", "NA", "Not")]
+    #           }
+    #       },
+#TODO These might of been made redundant
+# Carry "carry", this is a workaround to get things to follow the Actor's location
     "Carry" : {"Arguments" : ["carry"],
-          "Requires":{"at" : [("Monkey", "x"), ("carry", "y")], "have" : [("Monkey", "carry")]},
+          "Requires":{"at" : [("Actor", "x"), ("carry", "y")], "have" : [("Actor", "carry")]},
           "Effect" : {"at" : [("carry", "x"), ("carry", "y", "Not")]}
           },
-
+# Pull down "carry", this is a workaround to get things to follow the Actor's height
     "Pull Down" : {"Arguments" : ["carry"],
-      "Requires":{"height" : [("Monkey", "High"), ("carry", "High")], "have" : [("Monkey", "carry")]},
+      "Requires":{"height" : [("Actor", "High"), ("carry", "High")], "have" : [("Actor", "carry")]},
       "Effect" : {"height" : [("carry", "Low"), ("carry", "Low", "Not")]}
       }
-    }
-
-Goal = {"have" : [("Monkey", "Bananas")], "at" : [("Monkey", "A")], "height" : [("Monkey", "Low")]}
+}
+# Have the Actor replace the Broken Lightbulb with a new Lightbulb
+Goal = {
+    "have" : [("Actor", "Broken")],
+    "at" : [("Actor", "A"), ("Working", "B")],
+    "height" : [("Actor", "Low"), ("Working", "High")]
+}
 
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
-
+# x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
 Known_Things = set()
 Known_Locations = set()
 def find_things():
@@ -93,8 +130,8 @@ find_things()
 
 Saved_States = {}
 
-# Find State Kinds that don't exist in the Initial State, but will exist
-# For example, Grasp effects "have", but "have" is not in the Initial State
+# Find States of things that don't exist in the Initial State, but can exist
+# For example, Grasp affects "have", but "have" is not in the Initial State
 def build_state():
     for Operator in Operators:
         for Effect in Operators[Operator]["Effect"]:
@@ -102,8 +139,10 @@ def build_state():
                 #print(f"Adding: \"{Effect}\"")
                 State[Effect] = []
 
-# Convert the Current State into one that complies with the goal
 def build_goal(State = State):
+    """
+    Convert the Current State into one that complies with the goal
+    """
     Goal_State = save_state(State, "Goal")
     # Search Score
     score = 0
@@ -170,12 +209,23 @@ def load_state(Name):
 
 def check_goal(State):
     # If all goal outcomes are in the current state
-    return all([True for outcome in Goal[kind] if outcome in State[kind]] for kind in Goal)
+    #return all([True for outcome in Goal[kind] if outcome in State[kind]] for kind in Goal)
+
+    ## Find any things that are not true
+    for operator in Goal:
+        for thing in Goal[operator]:
+            if(thing not in State[operator]):
+                return False
+    ## If there are no false things, it must be true
+    return True
 
 
 ## TODO, Join Check and Do Together
 def Check_Operation(State, Operator, Args = []):
+    """
+    Check if a certain Operation is Valid on the given State
 
+    """
     #print(f"Operation: {Operator}, Args: {Args}")
     Op = Operators[Operator]
     Arguments = Op["Arguments"]
@@ -264,6 +314,9 @@ def Check_Operation(State, Operator, Args = []):
 
 
 def Operation(State, Operator, Args = [], already_checked = False):
+    """
+    Apply an Operation to a Given State, optionally bypassing validity checks
+    """
     #print(f"Operation: {Operator}")
     Operation = Operators[Operator]
     Arguments = Operation["Arguments"]
@@ -349,7 +402,7 @@ def Operation(State, Operator, Args = [], already_checked = False):
     for action_type in Effect:
         for action in Effect[action_type]:
             thing, Not = check_and_substitute_tuple(action, True)
-
+            #print(action, thing, Not)
             compare = State[action_type]
             # If In But is Not
             if thing in compare:
@@ -360,10 +413,13 @@ def Operation(State, Operator, Args = [], already_checked = False):
                 if not Not:
                     compare.append(thing)
 
-    # Return Success
     return True
 
-def get_at(State, Thing = "Monkey"):
+def get_at(State, Thing = "Actor"):
+    """
+    Returns
+        All the Things that are in the same location as Thing
+    """
     var = [pair[1] for pair in State["at"] if Thing in pair]
     if var == []: return ""
     else: return var[0]
@@ -380,7 +436,17 @@ global state_hash, current_options
 state_hash = 0
 current_options = {}
 
+
 def find_options(State):
+    """
+    Find Options
+
+    State : dict
+        The current State
+    Returns : dict 
+        Keys: operators that you can do
+        Values: List - Values that you can pass to the operator
+    """
     global state_hash, current_options
     ## NOTE str(dict) may not be stable, however, this will just mean that this function happens
     ## Stability is only required if the performance requirement dictates it.
@@ -400,10 +466,10 @@ def find_options(State):
         #print(args)
 
         ## I can guess what things I can put into each Arg Spot
-        # X is the Monkey's Position
-        monkey_pos = get_at(State, "Monkey")
-        # Y is not the Monkey's Position
-        not_monkey_pos = [loc for loc in Known_Locations if loc != monkey_pos]
+        # X is the Actor's Position
+        actor_pos = get_at(State, "Actor")
+        # Y is not the Actor's Position
+        where_actor_is_not = [loc for loc in Known_Locations if (loc != actor_pos and loc != "Inventory")]
         # Things
         things = Known_Things
 
@@ -413,10 +479,10 @@ def find_options(State):
             Guesses.append(None)
 
             if arg == "x":
-                Guesses[index] = monkey_pos
+                Guesses[index] = actor_pos
                 
             if arg == "y":
-                Guesses[index] = not_monkey_pos
+                Guesses[index] = where_actor_is_not
 
             if arg not in ["x","y"]:
                 Guesses[index] = list(things)
@@ -445,7 +511,7 @@ def find_options(State):
                 out.append(complete_guesses[jndex][index])
             good_args.append(out)
 
-        #print(f"{operator}\n{get_at(State,'Monkey')}") 
+        #print(f"{operator}\n{get_at(State,'Actor')}") 
         #print(f"Good: {good_args}")
         # Try each good arg
         valid_args = []
@@ -465,15 +531,15 @@ def simple_score(State):
 
 def debug_text():
     #print("-------------------")
-    print("Monkey is currently at:", get_at(State, "Monkey"))
+    print("Actor is currently at:", get_at(State, "Actor"))
     print(f"Current Options: {find_options(State)}")
     print(f"Num Options {simple_score(State)}")
     print("Score", distance_between(State, Saved_States["Goal"]))
 
           
 save_state(State, "Last")
-#ls = get_at("Monkey")
-print("Monkey is currently at:", get_at(State, "Monkey"))
+#ls = get_at("Actor")
+print("Actor is currently at:", get_at(State, "Actor"))
 
 options = find_options(State)
 print("--- Start State ---")
@@ -484,7 +550,99 @@ plans = 0
 done = False
 best_plan = ""
 
-def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
+
+def oldPlan(State, Name, limit = 8, best_len = 99999, last_operator = ""):
+    global best_plan, plans
+    plans += 1
+    if limit < 0:
+        #print("At Limit")
+        return best_len
+
+    if limit < 4:
+        # Start Caring about The Scores
+        simple = simple_score(State)
+        distance = distance_between(State, Saved_States["Goal"])
+        score = simple + distance
+        if simple > 3:
+            #print("Scores:", distance, simple)
+            #print("State:", Name)
+            if distance > 3:
+                return best_len
+
+    #print(f"Planning {Name}")
+    save_state(State, Name)
+    State = load_state(Name)
+    build_goal(State)
+
+    #print("-------------------")
+    options = find_options(State)
+
+    #print("Monkey is currently at:", get_at(State, "Monkey"))
+    #print(options)
+    #print(State)
+
+    for operator in options:
+        if operator == last_operator:
+            continue
+        for args in options[operator]:
+            #print(f"Operation: {operator} {args}")
+            State = load_state(Name)
+            Operation(State, operator, args)
+            Plan_Name = f"{Name} {operator} {args}"
+            save_state(State, Plan_Name)
+
+            if check_goal(State):
+                new_len = len(Plan_Name)
+                #print(best_len, new_len)
+                # itemThing = ""
+                # for item in Goal:
+                #     itemThing += item + ": ["
+                #     for thing in Goal[item]:
+                #         itemThing += str(thing) + ", "
+                        
+                #         print(thing)
+                #         print(thing in State[item])
+                #     itemThing = itemThing[:-2] + "]\n"
+
+                # print(itemThing)
+                if new_len < best_len:
+                    print(f"FOUND GOAL AT For {Name} {operator} {args}")
+                    best_len = new_len
+                    best_plan = Plan_Name
+
+                return best_len
+
+            best_len = oldPlan(State, f"{Name} {operator} {args}", limit - 1, best_len, operator)
+            #print(f"""For {Name} {operator} {args}\n\tSimple Score: {simple_score(State)}\n\tScore: distance_between(State, {Saved_States["Goal"]}""")
+
+
+                
+            
+            
+            #print("Build Goal")
+            #build_goal(State)
+            #print("Goal Built")
+            #debug_text()
+    return best_len
+
+
+print(State)
+print("-----PLANNING------")
+length = oldPlan(State, "Start", 15)
+print("Len", length)
+print(best_plan)
+print(Saved_States)
+print(Saved_States[best_plan])
+print("----End Options----")
+print("End Search")
+
+quit()
+
+
+
+
+
+def plan(State, Name, steps_left = 8, best_len = 99999, tried_go = False):
     global best_plan, plans, done, last_3_operators, last_operator_iter
     last_3_operators = ["", "", ""]
     last_operator_iter = 0
@@ -495,7 +653,7 @@ def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
 
 
     plans += 1
-    if limit < 0:
+    if steps_left < 0:
         #print("At Limit")
         best_plan = Name
         best_len = len(Name)
@@ -503,7 +661,7 @@ def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
     if done:
         return best_len
 
-    if limit < 4:
+    if steps_left < 4:
         # Start Caring about The Scores
         simple = simple_score(State)
         distance = distance_between(State, Saved_States["Goal"])
@@ -516,11 +674,12 @@ def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
     State = load_state(Name)
     build_goal(State)
 
-    new_hash = hash(str(State))
+    #new_hash = hash(str(State))
     options = find_options(State)
 
     for operator in options:
-        if operator == "Go" and tried_go:
+        # Don't try Go twice in a row, you can just Go from a to c, instead of a to b to c
+        if operator == "Go" and tried_go: 
             continue
         for args in options[operator]:
             State = load_state(Name)
@@ -529,6 +688,7 @@ def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
             Plan_Name = f"{Name} {operator} {args}"
 
             # TODO Work out if we've been in this State before
+            """
             escape = False
             for state_name in Saved_States:
                 # Ignore the Markers
@@ -539,7 +699,7 @@ def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
                 if (State.items() == other_state.items()):
                     #print("I remember this place...", state_name, ",", Plan_Name)
                     if Plan_Name == state_name: # We're already checking from here
-                        bad = "Yes"
+                        break#bad = "Yes"
                     elif len(Plan_Name) < len(state_name):
                         # This plan gets to this state quicker
                         del Saved_States[state_name]
@@ -554,7 +714,7 @@ def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
             print(Plan_Name, escape)
             if escape:
                 continue
-
+            """
             # Save this new state
             save_state(State, Plan_Name)
 
@@ -569,29 +729,37 @@ def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
                 done = True
                 return best_len
             # Else continue planning
-            best_len = plan(State, Plan_Name, limit - 1, best_len, operator == "Go")
+            best_len = plan(State, Plan_Name, steps_left - 1, best_len, operator == "Go")
 
     #print("Eh")
     return best_len
+
+
+
+
+
+
 
 print(State)
 print("-----PLANNING------")
 current_state = State
 best_plan = "Start"
 while not done:
-    length = plan(current_state, best_plan, 5, 9999)
+    length = oldPlan(current_state, best_plan, 5, 9999)
     current_state = Saved_States[best_plan]
 
     #build_goal(State)
     #print("Distance:", distance_between(Goal, Saved_States["Goal"]))
     #print("Length:", length)
 
-    print("Plan:", best_plan)
+    #print("Plan:", best_plan)
+    done = True
 print("----End Options----")
 print("End Search")
 
 print(plans)
-
+print("Plan:", best_plan)
+print([state + "\n" for state in Saved_States])
 ##Possible_New_Locations = [loc for loc in Known_Locations if loc != ls]
 ##for new_loc in Possible_New_Locations:
 ##    
