@@ -6,7 +6,7 @@ import math
 ["at", "Monkey", "A"]
 ["height", "Monkey", "Low"]
 ["pushable", "Box"] #Always True
-["climable", "Box"] #Always True
+["climbable", "Box"] #Always True
 ["graspable", "Bananas"] #Always True
 """
 
@@ -81,13 +81,13 @@ def find_things():
 ##        #print(Op)
 ##        Args = Op["Arguments"]
 ##        Substitutions = {}
-##        Reqs = Op["Requires"]
-##        Efcts = Op["Effect"]
+##        Requires = Op["Requires"]
+##        Effects = Op["Effect"]
 ##
-##        for Req in Reqs.values():
+##        for Req in Requires.values():
 ##            print(Req)
-##        for Efct in Efcts.values():
-##            print(Efct)
+##        for Effect in Effects.values():
+##            print(Effect)
 
 find_things()
 
@@ -174,22 +174,22 @@ def check_goal(State):
 
 
 ## TODO, Join Check and Do Together
-def Check_Operation(State, Operator, Arguments = []):
+def Check_Operation(State, Operator, Args = []):
 
-    #print(f"Operation: {Operator}, Arguments: {Arguments}")
+    #print(f"Operation: {Operator}, Args: {Args}")
     Op = Operators[Operator]
-    Args = Op["Arguments"]
+    Arguments = Op["Arguments"]
     Substitutions = {}
-    Reqs = Op["Requires"]
+    Requires = Op["Requires"]
 
     # Fulfil Requirements
-    if len(Args) != len(Arguments):
+    if len(Arguments) != len(Args):
         #print("Uh oh")
         return False
 
     # Define Substitutions
     # = {What to Substitute : To What} for each thing to substitute
-    Substitutions = {Args[index] : Arguments[index] for index in range(len(Args))}
+    Substitutions = {Arguments[index] : Args[index] for index in range(len(Arguments))}
 
     def check_and_substitute(x):
         if type(req) != tuple:
@@ -218,8 +218,8 @@ def Check_Operation(State, Operator, Arguments = []):
         return Tuple if not out_Not else [Tuple, Not]
 
     # Find any Fudges
-    for Type in Reqs:
-        for req in Reqs[Type]:
+    for Type in Requires:
+        for req in Requires[Type]:
             # Substitute any Known Values
             req = check_and_substitute(req)
 
@@ -252,33 +252,33 @@ def Check_Operation(State, Operator, Arguments = []):
 
 
     # Check Requirements
-    for require_type in Reqs:
-        for req in Reqs[require_type]:
+    for require_type in Requires:
+        for req in Requires[require_type]:
             req = check_and_substitute(req)
             if req not in State[require_type]:
-                current_value = [val for val in State[require_type] if req[0] == val[0]]
+                #current_value = [val for val in State[require_type] if req[0] == val[0]]
                 #print(f"""Cannot Complete Check Requirement\n\tRequirement: {req}\n\tCurrent State: {current_value[:]}""")
                 return False
 
     return True
 
 
-def Operation(State, Operator, Arguments = []):
+def Operation(State, Operator, Args = [], already_checked = False):
     #print(f"Operation: {Operator}")
-    Op = Operators[Operator]
-    Args = Op["Arguments"]
+    Operation = Operators[Operator]
+    Arguments = Operation["Arguments"]
     Substitutions = {}
-    Reqs = Op["Requires"]
-    Efct = Op["Effect"]
+    Requires = Operation["Requires"]
+    Effect = Operation["Effect"]
 
     # Fulfil Requirements
-    if len(Args) != len(Arguments):
+    if len(Arguments) != len(Args):
         print("Uh oh")
         return False
 
     # Define Substitutions
     # = {What to Substitute : To What} for each thing to substitute
-    Substitutions = {Args[index] : Arguments[index] for index in range(len(Args))}
+    Substitutions = {Arguments[index] : Args[index] for index in range(len(Arguments))}
 
     def check_and_substitute(x):
         if type(req) != tuple:
@@ -307,7 +307,7 @@ def Operation(State, Operator, Arguments = []):
         return Tuple if not out_Not else [Tuple, Not]
 
     # Find any Fudges
-    for List in [Reqs, Efct]:
+    for List in [Requires, Effect]:
         for Type in List:
             for req in List[Type]:
                 # Substitute any Known Values
@@ -317,11 +317,9 @@ def Operation(State, Operator, Arguments = []):
                 unknowns = [val in Known_Fudges for val in req]
                 # If they're all unknown, I have no clue what it should be
                 if all(unknowns):
-                    #print("Many Unknowns")
                     continue
                 # If some are unknown, Find them out
                 if any(unknowns):
-                    #print("Some Unknowns")
                     for x in req:
                         x = check_and_substitute_value(x)
                         if x in Known_Fudges:
@@ -333,23 +331,23 @@ def Operation(State, Operator, Arguments = []):
                 # There are no unknowns here
                 continue
 
-    
+    if not already_checked:
     # Check Requirements
-    for require_type in Reqs:
-        for req in Reqs[require_type]:
-            req = check_and_substitute(req)
-            if req not in State[require_type]:
-                print("Cannot Complete Act Requirement")
-                print(f"Requirement: {req}")
-                print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
-                print(Substitutions)
-                return False
+        for require_type in Requires:
+            for req in Requires[require_type]:
+                req = check_and_substitute(req)
+                if req not in State[require_type]:
+                    print("Cannot Complete Act Requirement")
+                    print(f"Requirement: {req}")
+                    print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
+                    print(Substitutions)
+                    return False
 
 
     # Act Out the Operation
     #print(f"Act out {Operator}")
-    for action_type in Efct:
-        for action in Efct[action_type]:
+    for action_type in Effect:
+        for action in Effect[action_type]:
             thing, Not = check_and_substitute_tuple(action, True)
 
             compare = State[action_type]
@@ -366,7 +364,10 @@ def Operation(State, Operator, Arguments = []):
     return True
 
 def get_at(State, Thing = "Monkey"):
-    return [pair[1] for pair in State["at"] if Thing in pair][0]
+    var = [pair[1] for pair in State["at"] if Thing in pair]
+    if var == []: return ""
+    else: return var[0]
+    
 
 build_state()
 save_state(State, "Start")
@@ -375,8 +376,23 @@ build_goal(State)
 
 
 ## TODO Reduce the Cost of Polling this Multiple Times
+global state_hash, current_options
+state_hash = 0
+current_options = {}
+
 def find_options(State):
+    global state_hash, current_options
+    ## NOTE str(dict) may not be stable, however, this will just mean that this function happens
+    ## Stability is only required if the performance requirement dictates it.
+
+    # Probably the same
+    if state_hash == hash(str(State)):
+        return current_options
+
+    # Else, find the new stuff
     current_options = {}
+    state_hash = hash(str(State))
+
     ## Assemble List of Possible Actions in this current state
     for operator in Operators:
         #print("Checking", operator)
@@ -391,7 +407,6 @@ def find_options(State):
         # Things
         things = Known_Things
 
-        Guessimoto = []
         Guesses = []
         for index in range(len(args)):
             arg = args[index]
@@ -464,78 +479,118 @@ options = find_options(State)
 print("--- Start State ---")
 debug_text()
 print("------Options------")
-global best_plan, plans
+global best_plan, plans, done
 plans = 0
-def plan(State, Name, limit = 8, best_len = 99999):
-    global best_plan, plans
+done = False
+best_plan = ""
+
+def plan(State, Name, limit = 8, best_len = 99999, tried_go = False):
+    global best_plan, plans, done, last_3_operators, last_operator_iter
+    last_3_operators = ["", "", ""]
+    last_operator_iter = 0
+
+        # last_3_operators[last_operator_iter % 3] = value
+        # last_operator_iter += 1
+
+
+
     plans += 1
     if limit < 0:
         #print("At Limit")
+        best_plan = Name
+        best_len = len(Name)
+        return best_len
+    if done:
         return best_len
 
     if limit < 4:
         # Start Caring about The Scores
         simple = simple_score(State)
         distance = distance_between(State, Saved_States["Goal"])
-        score = simple + distance
+        #score = simple + distance
         if simple > 3:
-            #print("Scores:", distance, simple)
-            #print("State:", Name)
             if distance > 3:
                 return best_len
 
-    #print(f"Planning {Name}")
     save_state(State, Name)
     State = load_state(Name)
     build_goal(State)
 
-    #print("-------------------")
+    new_hash = hash(str(State))
     options = find_options(State)
 
-    #print("Monkey is currently at:", get_at(State, "Monkey"))
-    #print(options)
-    #print(State)
-
     for operator in options:
+        if operator == "Go" and tried_go:
+            continue
         for args in options[operator]:
-            #print(f"Operation: {operator} {args}")
             State = load_state(Name)
-            Operation(State, operator, args)
+            # Perform the Operation
+            Operation(State, operator, args, True)
             Plan_Name = f"{Name} {operator} {args}"
+
+            # TODO Work out if we've been in this State before
+            escape = False
+            for state_name in Saved_States:
+                # Ignore the Markers
+                if state_name in ["Start", "Goal", "Last"]:
+                    continue
+
+                other_state = Saved_States[state_name]
+                if (State.items() == other_state.items()):
+                    #print("I remember this place...", state_name, ",", Plan_Name)
+                    if Plan_Name == state_name: # We're already checking from here
+                        bad = "Yes"
+                    elif len(Plan_Name) < len(state_name):
+                        # This plan gets to this state quicker
+                        del Saved_States[state_name]
+                        save_state(State, Plan_Name)
+                        # But We're already checking from here
+                    else:
+                        # This is worse than older states
+                        Plan_Name = state_name
+                    escape = True
+                    break
+
+            print(Plan_Name, escape)
+            if escape:
+                continue
+
+            # Save this new state
             save_state(State, Plan_Name)
 
+            # If fulfils the goal
             if check_goal(State):
                 new_len = len(Plan_Name)
-                #print(best_len, new_len)
-                if new_len < best_len:
-                    print(f"FOUND GOAL AT For {Name} {operator} {args}")
-                    best_len = new_len
-                    best_plan = Plan_Name
+                #if new_len < best_len:
+                print(f"FOUND GOAL AT For {Name} {operator} {args}")
+                best_len = new_len
+                best_plan = Plan_Name
 
+                done = True
                 return best_len
+            # Else continue planning
+            best_len = plan(State, Plan_Name, limit - 1, best_len, operator == "Go")
 
-            best_len = plan(State, f"{Name} {operator} {args}", limit - 1, best_len)
-            #print(f"""For {Name} {operator} {args}\n\tSimple Score: {simple_score(State)}\n\tScore: distance_between(State, {Saved_States["Goal"]}""")
-
-
-                
-            
-            
-            #print("Build Goal")
-            #build_goal(State)
-            #print("Goal Built")
-            #debug_text()
+    #print("Eh")
     return best_len
 
 print(State)
 print("-----PLANNING------")
-length = plan(State, "Start")
-print("Len", length)
-print(best_plan)
-print(Saved_States[best_plan])
+current_state = State
+best_plan = "Start"
+while not done:
+    length = plan(current_state, best_plan, 5, 9999)
+    current_state = Saved_States[best_plan]
+
+    #build_goal(State)
+    #print("Distance:", distance_between(Goal, Saved_States["Goal"]))
+    #print("Length:", length)
+
+    print("Plan:", best_plan)
 print("----End Options----")
 print("End Search")
 
+print(plans)
 
 ##Possible_New_Locations = [loc for loc in Known_Locations if loc != ls]
 ##for new_loc in Possible_New_Locations:
@@ -544,23 +599,3 @@ print("End Search")
 ##    #print(f"Score if Go from \"A\" to \"{new_loc}\": {distance_between(State, Saved_States['Goal'])}")
 ##    save_state(State, f"Go {'A'},{new_loc}")
 ##    State = load_state("Last")
-
-
-##State = load_state("Start")
-##Operation("Go", ["A", "C"]);build_goal(State)
-##debug_text()
-##Operation("Push", ["Box", "C", "B"]);build_goal(State)
-##debug_text()
-##Operation("ClimbUp", ["Box"]);build_goal(State)
-##debug_text()
-##Operation("Grasp", ["Bananas"]);build_goal(State)
-##debug_text()
-##Operation("ClimbDown", ["Box"]);build_goal(State)
-##debug_text()
-##Operation("Go", ["B", "A"]);build_goal(State)
-##debug_text()
-##Operation("Carry", ["Bananas"]);build_goal(State)
-##debug_text()
-##print(check_goal())
-##print(State)
-
