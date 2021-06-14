@@ -2,6 +2,7 @@
 import copy
 # Multiply Arrays
 import math
+from typing import Any, NoReturn
 """
 ["at", "Actor", "A"]
 ["height", "Actor", "Low"]
@@ -11,13 +12,13 @@ import math
 """
 
 ## This System Differs from other Planners, because it combines Qualities together, eg. There is a single object for all "at" values.
-
-State = {
+## , ("Working", "High") "Working",
+StartingState = {
     "at" : [("Actor", "A"),("Broken", "B"), ("Box", "C"), ("Working", "D")],
-    "height" : [("Actor", "Low"),("Broken", "High"), ("Box", "Low"), ("Working", "High")],
+    "height" : [("Actor", "Low"),("Broken", "High"), ("Box", "Low"), ("Working", "Low")],
     "pushable" : ["Box"], # List of True
     "climbable" : ["Box"], # List of True
-    "graspable" : ["Working", "Broken"] # List of True
+    "graspable" : [ "Broken", "Working"] # List of True
     }
 
 ## TODO Think about Held Objects following the Holder
@@ -92,18 +93,19 @@ Operators = {
       }
 }
 # Have the Actor replace the Broken Lightbulb with a new Lightbulb
-Goal = {
+OriginalGoal = {
     "have" : [("Actor", "Broken")],
-    "at" : [("Actor", "A"), ("Working", "B")],
-    "height" : [("Actor", "Low"), ("Working", "High")]
+    "at" : [("Actor", "A") ],
+    "height" : [("Actor", "Low")]
 }
 
+#  , ("Working", "B") , ("Working", "High")
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
-Known_Things = set()
-Known_Locations = set()
-def find_things():
+def find_things(State : dict[str, Any], Goal):
+    Known_Things = set();
+    Known_Locations = set();
     for Dict in [State, Goal]:
         for List in Dict:
             for thing in Dict[List]:
@@ -113,7 +115,46 @@ def find_things():
                         Known_Locations.add(thing[1])
                 else:
                     Known_Things.add(thing)
-    ## For Now, Don't care about Operations, The State and Goal is all we care about
+
+    return (Known_Things, Known_Locations);
+
+
+class Operation:
+    def __init__(this, Operator : str, Args : list = []):
+        this.Operator = Operator;
+        this.Args = Args;
+
+    def __str__(self) -> str:
+        return f"{self.Operator} {self.Args}"
+
+class Plan:
+    def __init__(this, First_Operation, parent):
+        
+        if First_Operation.Operator == "Start":
+            this.Operations = [First_Operation]
+            this.Current = StartingState
+            return;
+
+        this.Operations = parent.Operations + [First_Operation];
+        this.Current = DoOperation(parent.Current, First_Operation);
+        this.Goal = build_goal(this.Current);
+        this.Completed = check_goal(this.Current, this.Goal);
+
+        #print(this.Completed);
+
+    def Add(this, operation: Operation):
+        this.Operations.append(operation)
+        return this
+
+    def __str__(self) -> str:
+        return " ".join([str(op) for op in self.Operations])
+
+    def __len__(self) -> int:
+        return self.Operations.__len__()
+
+StartPlan = Plan(Operation("Start"), None)
+
+## For Now, Don't care about Operations, The State and Goal is all we care about
 ##    for Op in Operators.values():
 ##        #print(Op)
 ##        Args = Op["Arguments"]
@@ -126,24 +167,26 @@ def find_things():
 ##        for Effect in Effects.values():
 ##            print(Effect)
 
-find_things()
+(Known_Things, Known_Locations) = find_things(StartingState, OriginalGoal)
+
 
 Saved_States = {}
 
 # Find States of things that don't exist in the Initial State, but can exist
 # For example, Grasp affects "have", but "have" is not in the Initial State
-def build_state():
+def build_state(State):
     for Operator in Operators:
         for Effect in Operators[Operator]["Effect"]:
             if Effect not in State:
                 #print(f"Adding: \"{Effect}\"")
                 State[Effect] = []
+    return State
 
-def build_goal(State = State):
+def build_goal(State = StartingState, Goal = OriginalGoal):
     """
     Convert the Current State into one that complies with the goal
     """
-    Goal_State = save_state(State, "Goal")
+    Goal_State = copy.deepcopy(State)
     # Search Score
     score = 0
     # Similar to Fudging Operations, but this time Fudging the State itself
@@ -171,9 +214,9 @@ def build_goal(State = State):
                 else:
                     Goal_State[Type].append(thing)
 
-    return distance_between(State, Goal_State)
+    return Goal_State
     
-def distance_between(State_A, State_B):
+def distance_between(State_A, State_B ) -> int:
     score = 0
     missing = []
     ## TODO Make the Score more aware of When a value is altered instead of missing
@@ -191,7 +234,7 @@ def distance_between(State_A, State_B):
     #print(missing)
     return len(missing)
 
-def save_state(State, Name = ""):
+def save_state(State, Name : str = ""):
     #print(f"Saving State with name: \"{Name}\"")
     if Name == "": Name = str(len(Saved_States))
     #if Name in Saved_States.keys(): print(f"Overriding \"{Name}\"")
@@ -200,14 +243,14 @@ def save_state(State, Name = ""):
     #print(f"State \"{Name}\" now looks like: {State}")
     return Saved_States[Name]
 
-def load_state(Name):
+def load_state(Name : str):
     #print(f"Loading State with name: \"{Name}\"")
     State = copy.deepcopy(Saved_States[Name])
 
     #print(f"State \"{Name}\" looks like: {State}")
     return State
 
-def check_goal(State):
+def check_goal(State : StartingState, Goal : StartingState) -> bool:
     # If all goal outcomes are in the current state
     #return all([True for outcome in Goal[kind] if outcome in State[kind]] for kind in Goal)
 
@@ -221,25 +264,25 @@ def check_goal(State):
 
 
 ## TODO, Join Check and Do Together
-def Check_Operation(State, Operator, Args = []):
+def Check_Operation(State, Operation : Operation):
     """
     Check if a certain Operation is Valid on the given State
 
     """
     #print(f"Operation: {Operator}, Args: {Args}")
-    Op = Operators[Operator]
+    Op = Operators[Operation.Operator]
     Arguments = Op["Arguments"]
     Substitutions = {}
     Requires = Op["Requires"]
 
     # Fulfil Requirements
-    if len(Arguments) != len(Args):
+    if len(Arguments) != len(Operation.Args):
         #print("Uh oh")
         return False
 
     # Define Substitutions
     # = {What to Substitute : To What} for each thing to substitute
-    Substitutions = {Arguments[index] : Args[index] for index in range(len(Arguments))}
+    Substitutions = {Arguments[index] : Operation.Args[index] for index in range(len(Arguments))}
 
     def check_and_substitute(x):
         if type(req) != tuple:
@@ -312,26 +355,28 @@ def Check_Operation(State, Operator, Args = []):
 
     return True
 
-
-def Operation(State, Operator, Args = [], already_checked = False):
+def DoOperation(OriginalState : StartingState, Operation : Operation, already_checked = False) -> bool:
     """
     Apply an Operation to a Given State, optionally bypassing validity checks
     """
     #print(f"Operation: {Operator}")
-    Operation = Operators[Operator]
-    Arguments = Operation["Arguments"]
+    Operator = Operators[Operation.Operator]
+    Arguments = Operator["Arguments"]
     Substitutions = {}
-    Requires = Operation["Requires"]
-    Effect = Operation["Effect"]
+    Requires = Operator["Requires"]
+    Effect = Operator["Effect"]
+
+    
 
     # Fulfil Requirements
-    if len(Arguments) != len(Args):
+    if len(Arguments) != len(Operation.Args):
         print("Uh oh")
-        return False
+        return OriginalState
 
+    State = copy.deepcopy(OriginalState)
     # Define Substitutions
     # = {What to Substitute : To What} for each thing to substitute
-    Substitutions = {Arguments[index] : Args[index] for index in range(len(Arguments))}
+    Substitutions = {Arguments[index] : Operation.Args[index] for index in range(len(Arguments))}
 
     def check_and_substitute(x):
         if type(req) != tuple:
@@ -394,8 +439,7 @@ def Operation(State, Operator, Args = [], already_checked = False):
                     print(f"Requirement: {req}")
                     print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
                     print(Substitutions)
-                    return False
-
+                    return OriginalState
 
     # Act Out the Operation
     #print(f"Act out {Operator}")
@@ -413,7 +457,7 @@ def Operation(State, Operator, Args = [], already_checked = False):
                 if not Not:
                     compare.append(thing)
 
-    return True
+    return State
 
 def get_at(State, Thing = "Actor"):
     """
@@ -425,11 +469,22 @@ def get_at(State, Thing = "Actor"):
     else: return var[0]
     
 
-build_state()
-save_state(State, "Start")
-build_goal(State)
+StartingState = build_state(StartingState)
+#save_state(StartingState, StartPlan)
+BuiltGoal = build_goal(StartingState)
 #print(distance_between(State, Saved_States["Goal"]))
 
+# print(f"This works?: {check_goal(BuiltGoal, BuiltGoal)}")
+# GoodPlan = Plan(Operation("Go", ["A", "C"]), StartPlan)
+# GoodPlan = Plan(Operation("Push", ["Box", "C", "B"]), GoodPlan)
+# GoodPlan = Plan(Operation("ClimbUp", ["Box"]), GoodPlan)
+# GoodPlan = Plan(Operation("Grasp", ["Broken"]), GoodPlan)
+# GoodPlan = Plan(Operation("ClimbDown", ["Box"]), GoodPlan)
+# GoodPlan = Plan(Operation("Go", ["B", "A"]), GoodPlan)
+# Goal = build_goal(GoodPlan.Current)
+# print(f"This works?: {check_goal(GoodPlan.Current, Goal)}")
+# print(GoodPlan.Current)
+# print(Goal)
 
 ## TODO Reduce the Cost of Polling this Multiple Times
 global state_hash, current_options
@@ -437,7 +492,7 @@ state_hash = 0
 current_options = {}
 
 
-def find_options(State):
+def find_options(State) -> current_options:
     """
     Find Options
 
@@ -516,7 +571,7 @@ def find_options(State):
         # Try each good arg
         valid_args = []
         for args in good_args:
-            if Check_Operation(State, operator, args):
+            if Check_Operation(State, Operation(operator, args)):
                 valid_args.append(args)
 
         #print(f"Args: {valid_args}")
@@ -529,53 +584,55 @@ def simple_score(State):
     opt = find_options(State)
     return len([thing for option in opt for thing in opt[option]])
 
-def debug_text():
+def debug_text(State):
     #print("-------------------")
     print("Actor is currently at:", get_at(State, "Actor"))
     print(f"Current Options: {find_options(State)}")
     print(f"Num Options {simple_score(State)}")
-    print("Score", distance_between(State, Saved_States["Goal"]))
+    #print("Score", distance_between(State, Saved_States["Goal"]))
 
           
-save_state(State, "Last")
+#save_state(State, "Last")
 #ls = get_at("Actor")
-print("Actor is currently at:", get_at(State, "Actor"))
+print("Actor is currently at:", get_at(StartingState, "Actor"))
 
-options = find_options(State)
+options = find_options(StartingState)
 print("--- Start State ---")
-debug_text()
+debug_text(StartingState)
 print("------Options------")
-global best_plan, plans, done
-plans = 0
-done = False
-best_plan = ""
+#global best_plan, plans, done
+# plans = 0
+# done = False
+# best_plan = ""
 
 
-def oldPlan(State, Name, limit = 8, best_len = 99999, last_operator = ""):
-    global best_plan, plans
-    plans += 1
-    if limit < 0:
+
+
+def oldPlan(CurrPlan : Plan, limit = 20, BestPlan : Plan = None, last_operator = "") -> Plan:
+    #global best_plan, plans
+    #plans += 1
+    if limit <= 0:
         #print("At Limit")
-        return best_len
+        return BestPlan
+
+    State = CurrPlan.Current
+    GoalState = build_goal(State, BuiltGoal)
+    options = find_options(State)
 
     if limit < 4:
         # Start Caring about The Scores
         simple = simple_score(State)
-        distance = distance_between(State, Saved_States["Goal"])
+        distance = distance_between(State, GoalState)
         score = simple + distance
         if simple > 3:
             #print("Scores:", distance, simple)
             #print("State:", Name)
-            if distance > 3:
-                return best_len
+            if distance > 5:
+                return BestPlan
 
-    #print(f"Planning {Name}")
-    save_state(State, Name)
-    State = load_state(Name)
-    build_goal(State)
-
-    #print("-------------------")
-    options = find_options(State)
+    # #print(f"Planning {Name}")
+    # save_state(State, str(CurrPlan))
+    # State = load_state(str(CurrPlan))
 
     #print("Monkey is currently at:", get_at(State, "Monkey"))
     #print(options)
@@ -586,13 +643,16 @@ def oldPlan(State, Name, limit = 8, best_len = 99999, last_operator = ""):
             continue
         for args in options[operator]:
             #print(f"Operation: {operator} {args}")
-            State = load_state(Name)
-            Operation(State, operator, args)
-            Plan_Name = f"{Name} {operator} {args}"
-            save_state(State, Plan_Name)
+            op = Operation(operator, args)
+            # State = load_state(str(CurrPlan))
+            # DoOperation(State, op)
+            NewPlan = Plan(op, CurrPlan)
+            #print(str(NewPlan))
+            # save_state(State, str(CurrPlan))
 
-            if check_goal(State):
-                new_len = len(Plan_Name)
+            if NewPlan.Completed:
+                new_len = len(NewPlan)
+                best_len = len(BestPlan)
                 #print(best_len, new_len)
                 # itemThing = ""
                 # for item in Goal:
@@ -605,14 +665,14 @@ def oldPlan(State, Name, limit = 8, best_len = 99999, last_operator = ""):
                 #     itemThing = itemThing[:-2] + "]\n"
 
                 # print(itemThing)
-                if new_len < best_len:
-                    print(f"FOUND GOAL AT For {Name} {operator} {args}")
-                    best_len = new_len
-                    best_plan = Plan_Name
+                #if new_len < best_len:
+                print(f"FOUND GOAL AT For {NewPlan}")
+                best_len = new_len
+                BestPlan = NewPlan
 
-                return best_len
+                return NewPlan
 
-            best_len = oldPlan(State, f"{Name} {operator} {args}", limit - 1, best_len, operator)
+            BestPlan = oldPlan(NewPlan, limit - 1, BestPlan, operator)
             #print(f"""For {Name} {operator} {args}\n\tSimple Score: {simple_score(State)}\n\tScore: distance_between(State, {Saved_States["Goal"]}""")
 
 
@@ -623,16 +683,17 @@ def oldPlan(State, Name, limit = 8, best_len = 99999, last_operator = ""):
             #build_goal(State)
             #print("Goal Built")
             #debug_text()
-    return best_len
+    return BestPlan
 
 
-print(State)
+#print(StartingState)
 print("-----PLANNING------")
-length = oldPlan(State, "Start", 15)
-print("Len", length)
-print(best_plan)
-print(Saved_States)
-print(Saved_States[best_plan])
+BestPlan = oldPlan(StartPlan, 15, StartPlan)
+print("Len", BestPlan.Operations.__len__())
+print(BestPlan.Current)
+print(BestPlan)
+#print(Saved_States)
+#print(Saved_States[best_plan])
 print("----End Options----")
 print("End Search")
 
@@ -642,128 +703,128 @@ quit()
 
 
 
-def plan(State, Name, steps_left = 8, best_len = 99999, tried_go = False):
-    global best_plan, plans, done, last_3_operators, last_operator_iter
-    last_3_operators = ["", "", ""]
-    last_operator_iter = 0
+# def plan(State, Name, steps_left = 8, best_len = 99999, tried_go = False):
+#     global best_plan, plans, done, last_3_operators, last_operator_iter
+#     last_3_operators = ["", "", ""]
+#     last_operator_iter = 0
 
-        # last_3_operators[last_operator_iter % 3] = value
-        # last_operator_iter += 1
-
-
-
-    plans += 1
-    if steps_left < 0:
-        #print("At Limit")
-        best_plan = Name
-        best_len = len(Name)
-        return best_len
-    if done:
-        return best_len
-
-    if steps_left < 4:
-        # Start Caring about The Scores
-        simple = simple_score(State)
-        distance = distance_between(State, Saved_States["Goal"])
-        #score = simple + distance
-        if simple > 3:
-            if distance > 3:
-                return best_len
-
-    save_state(State, Name)
-    State = load_state(Name)
-    build_goal(State)
-
-    #new_hash = hash(str(State))
-    options = find_options(State)
-
-    for operator in options:
-        # Don't try Go twice in a row, you can just Go from a to c, instead of a to b to c
-        if operator == "Go" and tried_go: 
-            continue
-        for args in options[operator]:
-            State = load_state(Name)
-            # Perform the Operation
-            Operation(State, operator, args, True)
-            Plan_Name = f"{Name} {operator} {args}"
-
-            # TODO Work out if we've been in this State before
-            """
-            escape = False
-            for state_name in Saved_States:
-                # Ignore the Markers
-                if state_name in ["Start", "Goal", "Last"]:
-                    continue
-
-                other_state = Saved_States[state_name]
-                if (State.items() == other_state.items()):
-                    #print("I remember this place...", state_name, ",", Plan_Name)
-                    if Plan_Name == state_name: # We're already checking from here
-                        break#bad = "Yes"
-                    elif len(Plan_Name) < len(state_name):
-                        # This plan gets to this state quicker
-                        del Saved_States[state_name]
-                        save_state(State, Plan_Name)
-                        # But We're already checking from here
-                    else:
-                        # This is worse than older states
-                        Plan_Name = state_name
-                    escape = True
-                    break
-
-            print(Plan_Name, escape)
-            if escape:
-                continue
-            """
-            # Save this new state
-            save_state(State, Plan_Name)
-
-            # If fulfils the goal
-            if check_goal(State):
-                new_len = len(Plan_Name)
-                #if new_len < best_len:
-                print(f"FOUND GOAL AT For {Name} {operator} {args}")
-                best_len = new_len
-                best_plan = Plan_Name
-
-                done = True
-                return best_len
-            # Else continue planning
-            best_len = plan(State, Plan_Name, steps_left - 1, best_len, operator == "Go")
-
-    #print("Eh")
-    return best_len
+#         # last_3_operators[last_operator_iter % 3] = value
+#         # last_operator_iter += 1
 
 
+
+#     plans += 1
+#     if steps_left < 0:
+#         #print("At Limit")
+#         best_plan = Name
+#         best_len = len(Name)
+#         return best_len
+#     if done:
+#         return best_len
+
+#     if steps_left < 4:
+#         # Start Caring about The Scores
+#         simple = simple_score(State)
+#         distance = distance_between(State, Saved_States["Goal"])
+#         #score = simple + distance
+#         if simple > 3:
+#             if distance > 3:
+#                 return best_len
+
+#     save_state(State, Name)
+#     State = load_state(Name)
+#     build_goal(State)
+
+#     #new_hash = hash(str(State))
+#     options = find_options(State)
+
+#     for operator in options:
+#         # Don't try Go twice in a row, you can just Go from a to c, instead of a to b to c
+#         if operator == "Go" and tried_go: 
+#             continue
+#         for args in options[operator]:
+#             State = load_state(Name)
+#             # Perform the Operation
+#             Operation(State, operator, args, True)
+#             Plan_Name = f"{Name} {operator} {args}"
+
+#             # TODO Work out if we've been in this State before
+#             """
+#             escape = False
+#             for state_name in Saved_States:
+#                 # Ignore the Markers
+#                 if state_name in ["Start", "Goal", "Last"]:
+#                     continue
+
+#                 other_state = Saved_States[state_name]
+#                 if (State.items() == other_state.items()):
+#                     #print("I remember this place...", state_name, ",", Plan_Name)
+#                     if Plan_Name == state_name: # We're already checking from here
+#                         break#bad = "Yes"
+#                     elif len(Plan_Name) < len(state_name):
+#                         # This plan gets to this state quicker
+#                         del Saved_States[state_name]
+#                         save_state(State, Plan_Name)
+#                         # But We're already checking from here
+#                     else:
+#                         # This is worse than older states
+#                         Plan_Name = state_name
+#                     escape = True
+#                     break
+
+#             print(Plan_Name, escape)
+#             if escape:
+#                 continue
+#             """
+#             # Save this new state
+#             save_state(State, Plan_Name)
+
+#             # If fulfils the goal
+#             if check_goal(State):
+#                 new_len = len(Plan_Name)
+#                 #if new_len < best_len:
+#                 print(f"FOUND GOAL AT For {Name} {operator} {args}")
+#                 best_len = new_len
+#                 best_plan = Plan_Name
+
+#                 done = True
+#                 return best_len
+#             # Else continue planning
+#             best_len = plan(State, Plan_Name, steps_left - 1, best_len, operator == "Go")
+
+#     #print("Eh")
+#     return best_len
 
 
 
 
 
-print(State)
-print("-----PLANNING------")
-current_state = State
-best_plan = "Start"
-while not done:
-    length = oldPlan(current_state, best_plan, 5, 9999)
-    current_state = Saved_States[best_plan]
 
-    #build_goal(State)
-    #print("Distance:", distance_between(Goal, Saved_States["Goal"]))
-    #print("Length:", length)
 
-    #print("Plan:", best_plan)
-    done = True
-print("----End Options----")
-print("End Search")
+# print(State)
+# print("-----PLANNING------")
+# current_state = State
+# best_plan = "Start"
+# while not done:
+#     length = oldPlan(current_state, best_plan, 5, 9999)
+#     current_state = Saved_States[best_plan]
 
-print(plans)
-print("Plan:", best_plan)
-print([state + "\n" for state in Saved_States])
-##Possible_New_Locations = [loc for loc in Known_Locations if loc != ls]
-##for new_loc in Possible_New_Locations:
-##    
-##    Operation("Go", ["A", new_loc]);build_goal(State)
-##    #print(f"Score if Go from \"A\" to \"{new_loc}\": {distance_between(State, Saved_States['Goal'])}")
-##    save_state(State, f"Go {'A'},{new_loc}")
-##    State = load_state("Last")
+#     #build_goal(State)
+#     #print("Distance:", distance_between(Goal, Saved_States["Goal"]))
+#     #print("Length:", length)
+
+#     #print("Plan:", best_plan)
+#     done = True
+# print("----End Options----")
+# print("End Search")
+
+# print(plans)
+# print("Plan:", best_plan)
+# print([state + "\n" for state in Saved_States])
+# ##Possible_New_Locations = [loc for loc in Known_Locations if loc != ls]
+# ##for new_loc in Possible_New_Locations:
+# ##    
+# ##    Operation("Go", ["A", new_loc]);build_goal(State)
+# ##    #print(f"Score if Go from \"A\" to \"{new_loc}\": {distance_between(State, Saved_States['Goal'])}")
+# ##    save_state(State, f"Go {'A'},{new_loc}")
+# ##    State = load_state("Last")
