@@ -70,7 +70,7 @@ Operators = {
               "at":[("grab", "Inventory"), ("grab", "x", "Not")],
               "height":[("grab", "NA"), ("grab", "h", "Not")]
               }
-          },
+          }
 # Put down "drop"
     # "Drop" : {"Arguments" : ["drop"],
     #       "Requires":{"have" : [("Actor", "drop")]},
@@ -82,15 +82,15 @@ Operators = {
     #       },
 #TODO These might of been made redundant
 # Carry "carry", this is a workaround to get things to follow the Actor's location
-    "Carry" : {"Arguments" : ["carry"],
-          "Requires":{"at" : [("Actor", "x"), ("carry", "y")], "have" : [("Actor", "carry")]},
-          "Effect" : {"at" : [("carry", "x"), ("carry", "y", "Not")]}
-          },
-# Pull down "carry", this is a workaround to get things to follow the Actor's height
-    "Pull Down" : {"Arguments" : ["carry"],
-      "Requires":{"height" : [("Actor", "High"), ("carry", "High")], "have" : [("Actor", "carry")]},
-      "Effect" : {"height" : [("carry", "Low"), ("carry", "Low", "Not")]}
-      }
+#     "Carry" : {"Arguments" : ["carry"],
+#           "Requires":{"at" : [("Actor", "x"), ("carry", "y")], "have" : [("Actor", "carry")]},
+#           "Effect" : {"at" : [("carry", "x"), ("carry", "y", "Not")]}
+#           },
+# # Pull down "carry", this is a workaround to get things to follow the Actor's height
+#     "Pull Down" : {"Arguments" : ["carry"],
+#       "Requires":{"height" : [("Actor", "High"), ("carry", "High")], "have" : [("Actor", "carry")]},
+#       "Effect" : {"height" : [("carry", "Low"), ("carry", "Low", "Not")]}
+#       }
 }
 # Have the Actor replace the Broken Lightbulb with a new Lightbulb
 OriginalGoal = {
@@ -118,7 +118,6 @@ def find_things(State : dict[str, Any], Goal):
 
     return (Known_Things, Known_Locations);
 
-
 class Operation:
     def __init__(this, Operator : str, Args : list = []):
         this.Operator = Operator;
@@ -128,17 +127,28 @@ class Operation:
         return f"{self.Operator} {self.Args}"
 
 class Plan:
-    def __init__(this, First_Operation, parent):
+    def __init__(self, First_Operation, parent):
         
         if First_Operation.Operator == "Start":
-            this.Operations = [First_Operation]
-            this.Current = StartingState
+            self.Parent = None
+            self.Operations = [First_Operation]
+            self.CurrentState = StartingState
+            self.ChildOf = 0;
+            self.BasicScore = 9999999999;
             return;
 
-        this.Operations = parent.Operations + [First_Operation];
-        this.Current = DoOperation(parent.Current, First_Operation);
-        this.Goal = build_goal(this.Current);
-        this.Completed = check_goal(this.Current, this.Goal);
+        self.Parent : Plan = parent
+        self.ChildOf = self.Parent.ChildOf + 1
+        self.Operations = parent.Operations + [First_Operation];
+        self.CurrentState = DoOperation(self.Parent.CurrentState, First_Operation);
+        self.BasicScore = self.Operations.__len__();
+
+        self.Goal = build_goal(self.CurrentState);
+        self.Completed = check_goal(self.CurrentState, self.Goal);
+
+        # if(this.Completed):
+        #     print(f"Optimizing: {str(this.Parent)}")
+        #     this.Optimize()
 
         #print(this.Completed);
 
@@ -146,11 +156,38 @@ class Plan:
         this.Operations.append(operation)
         return this
 
+    def Optimize(this):
+        # Go through the Children to find identical states
+        parent_states = {}
+        
+        Parent = this.Parent
+        while(Parent != None):
+            strState = str(Parent.CurrentState)
+            if strState in parent_states:
+                parent_states[strState].append(Parent)
+            else:
+               parent_states[strState] = [Parent]
+
+            Parent = Parent.Parent
+
+        for state in parent_states.values():
+                if len(state) > 1:
+                    best_parent = this;
+                    best_age = this.ChildOf;
+                    for Plan in state:
+                        if best_age > Plan.ChildOf:
+                            best_age = Plan.ChildOf
+                            best_parent = Plan
+
+                    this = best_parent
+                    print("Optimised")
+                    return;
+
     def __str__(self) -> str:
         return " ".join([str(op) for op in self.Operations])
 
     def __len__(self) -> int:
-        return self.Operations.__len__()
+        return self.BasicScore
 
 StartPlan = Plan(Operation("Start"), None)
 
@@ -355,7 +392,7 @@ def Check_Operation(State, Operation : Operation):
 
     return True
 
-def DoOperation(OriginalState : StartingState, Operation : Operation, already_checked = False) -> bool:
+def DoOperation(OriginalState : StartingState, Operation : Operation, already_checked = False) -> StartingState:
     """
     Apply an Operation to a Given State, optionally bypassing validity checks
     """
@@ -615,7 +652,7 @@ def oldPlan(CurrPlan : Plan, limit = 20, BestPlan : Plan = None, last_operator =
         #print("At Limit")
         return BestPlan
 
-    State = CurrPlan.Current
+    State = CurrPlan.CurrentState
     GoalState = build_goal(State, BuiltGoal)
     options = find_options(State)
 
@@ -651,8 +688,6 @@ def oldPlan(CurrPlan : Plan, limit = 20, BestPlan : Plan = None, last_operator =
             # save_state(State, str(CurrPlan))
 
             if NewPlan.Completed:
-                new_len = len(NewPlan)
-                best_len = len(BestPlan)
                 #print(best_len, new_len)
                 # itemThing = ""
                 # for item in Goal:
@@ -665,12 +700,11 @@ def oldPlan(CurrPlan : Plan, limit = 20, BestPlan : Plan = None, last_operator =
                 #     itemThing = itemThing[:-2] + "]\n"
 
                 # print(itemThing)
-                #if new_len < best_len:
-                print(f"FOUND GOAL AT For {NewPlan}")
-                best_len = new_len
-                BestPlan = NewPlan
-
-                return NewPlan
+                if len(NewPlan) < len(BestPlan):
+                    print(f"FOUND GOAL AT For {NewPlan}")
+                    BestPlan = NewPlan
+                    BestPlan.Optimize()
+                return BestPlan
 
             BestPlan = oldPlan(NewPlan, limit - 1, BestPlan, operator)
             #print(f"""For {Name} {operator} {args}\n\tSimple Score: {simple_score(State)}\n\tScore: distance_between(State, {Saved_States["Goal"]}""")
@@ -690,7 +724,7 @@ def oldPlan(CurrPlan : Plan, limit = 20, BestPlan : Plan = None, last_operator =
 print("-----PLANNING------")
 BestPlan = oldPlan(StartPlan, 15, StartPlan)
 print("Len", BestPlan.Operations.__len__())
-print(BestPlan.Current)
+print(BestPlan.CurrentState)
 print(BestPlan)
 #print(Saved_States)
 #print(Saved_States[best_plan])
