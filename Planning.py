@@ -70,16 +70,16 @@ Operators = {
               "at":[("grab", "Inventory"), ("grab", "x", "Not")],
               "height":[("grab", "NA"), ("grab", "h", "Not")]
               }
-          }
+          },
 # Put down "drop"
-    # "Drop" : {"Arguments" : ["drop"],
-    #       "Requires":{"have" : [("Actor", "drop")]},
-    #       "Effect" : {
-    #           "have" : [("Actor", "drop", "Not")],
-    #           "at" : [("drop","x"), ("drop", "Inventory", "Not")],
-    #           "height" : [("drop", "h"), ("drop", "NA", "Not")]
-    #           }
-    #       },
+    "Drop" : {"Arguments" : ["drop"],
+          "Requires":{"have" : [("Actor", "drop")]},
+          "Effect" : {
+              "have" : [("Actor", "drop", "Not")],
+              "at" : [("drop","x"), ("drop", "Inventory", "Not")],
+              "height" : [("drop", "h"), ("drop", "NA", "Not")]
+              }
+          },
 #TODO These might of been made redundant
 # Carry "carry", this is a workaround to get things to follow the Actor's location
 #     "Carry" : {"Arguments" : ["carry"],
@@ -95,11 +95,11 @@ Operators = {
 # Have the Actor replace the Broken Lightbulb with a new Lightbulb
 OriginalGoal = {
     "have" : [("Actor", "Broken")],
-    "at" : [("Actor", "A") ],
-    "height" : [("Actor", "Low")]
+    "at" : [("Actor", "A")],
+    "height" : [("Actor", "Low") ]
 }
 
-#  , ("Working", "B") , ("Working", "High")
+#   , ("Working", "High"), ("Working", "B")
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
@@ -499,6 +499,11 @@ def debug_text(State):
     #print("Score", distance_between(State, Saved_States["Goal"]))
 
 class Plan:
+    maxPlanDepth = 30
+    childrenBeforeEndCheck = 5
+    worstSimpleScore = 10
+    worstGoalDistance = 10
+
     def __init__(self, First_Operation, parent):
 
         self.ThisOperation = First_Operation
@@ -520,12 +525,16 @@ class Plan:
 
         self.Parent : Plan = parent
         self.ChildOf = self.Parent.ChildOf + 1
-        self.Operations : list[Operation] = parent.Operations + [self.ThisOperation];
+        self.Operations : list[Operation] = self.Parent.Operations + [self.ThisOperation];
         self.CurrentState = DoOperation(self.Parent.CurrentState, self.ThisOperation);
         self.BasicScore = self.Operations.__len__();
 
         self.Options = find_options(self.CurrentState)
-        self.StateHash = hash(str(self.CurrentState))
+        ## Sort State
+        for type in self.CurrentState:
+            self.CurrentState[type] = sorted(self.CurrentState[type])
+
+        self.StateHash: int = hash(str(self.CurrentState))
 
         self.Goal = build_goal(self.CurrentState);
         self.Completed = check_goal(self.CurrentState, self.Goal);
@@ -533,7 +542,12 @@ class Plan:
         self.SimpleScore = simple_score(self.CurrentState)
         self.DistanceToGoal = distance_between(self.CurrentState, self.Goal)
 
-        self.DeadEnd = (self.ChildOf >= 20) or ((self.ChildOf > 4) and (self.SimpleScore > 4) and (self.DistanceToGoal > 5))
+        self.DeadEnd = (self.ChildOf >= Plan.maxPlanDepth) or ((self.ChildOf >= Plan.childrenBeforeEndCheck) and (self.SimpleScore >= Plan.worstSimpleScore) and (self.DistanceToGoal >= Plan.worstGoalDistance))
+
+        # optimised = self.Optimise()
+        # while self.StateHash != optimised.StateHash:
+        #     optimised = self.Optimise()
+        # self = optimised
 
     def Add(this, operation: Operation):
         this.Operations.append(operation)
@@ -543,46 +557,55 @@ class Plan:
         this = newPlan
         return this;
 
-    def Optimize(this):
+    def Optimise(this):
         # Go through the Children to find identical states
-        print("Optimise")
+        # print("Optimise")
 
-        operation_list : set = set()
-        # Convert the Plans into a list of Operations and the State at each
-        Parent = this.Parent
+        Parent = this;
+        state_list : dict(str, list[Plan]) = dict()
         while Parent != None:
-            operation_list.add(
-                (
-                    Parent.StateHash, # The State it's in at this point
-                    Parent.ThisOperation, # The Operation it took to get here
-                    Parent.ChildOf # The Index, just to make sure it's ordered correctly
-                )
-            )
+            plan = Parent
+            
+            if plan.StateHash in state_list:
+                state_list[plan.StateHash].append(plan)
+            else:
+                state_list[plan.StateHash] = [plan]
+
             Parent = Parent.Parent
 
+        conflicting_states = [plan_list for plan_list in state_list.values() if len(plan_list) > 1]
+        # print(f"There are {len(conflicting_states)} states left")
+        if len(conflicting_states) <= 0:
+            # print(f"Optimised Plan: {this}")
+            return this;
+        
+        biggest_pair : tuple[Plan, Plan] = None
+        distance : int = 0
+        def findDistance(pair : tuple[Plan, Plan]):
+            return abs(pair[0].ChildOf - pair[1].ChildOf);
 
-        shortest_plan = []
-        while True:
-            # Construct possible Optimised Plans
-            optimised_plans = []
-            for tuple in operation_list:
-                duplicates = [item for item in operation_list if item[0] == tuple[0]]
-                if len(duplicates) > 2:
-                    #print(duplicates)
-                    itrs = [item[2] for item in duplicates]
-                    min_op = min(itrs)
-                    max_op = max(itrs)
-                    optimised_plans.append([item for item in operation_list if not (min_op < item[2] and item[2] < max_op)])
-            if len(optimised_plans) == 0:
-                break;
-            shortest_plan = sorted(optimised_plans, key= lambda plan: len(plan))[0]
-            operation_list = shortest_plan
+        ## Find the biggest leap to remove
+        for array in conflicting_states:
+            pairs = list(zip(array, array[1:] + array[:1]))
+            for pair in pairs:
+                current_distance = findDistance(pair);
+                if current_distance > distance:
+                    biggest_pair = pair
+                    distance = current_distance
         
-        # Now that we have the Shortest Plan that gets to this place, implement it.
-        plans = sorted(shortest_plan, key= lambda plan: plan[2])
-        operations = [operation[1] for operation in plans]
-        return this
+        ## Update the Plan with this removed from it.
+        (oldestPlan, jumpToPlan) = sorted(biggest_pair, key=lambda plan: plan.ChildOf)
+        ## Reconstruct the plan, with three (or four) markers;
+        ## Start -> oldestPlan | jumpToPlan -> thisPlan
+        newPlan = copy.deepcopy(oldestPlan)
+        index = jumpToPlan.ChildOf + 1
+        operationsToDo = this.Operations[index:]
+        completeOperations = newPlan.Operations + operationsToDo
         
+        for operation in operationsToDo:
+            newPlan = Plan(operation, newPlan)
+
+        return newPlan.Optimise()
 
     def __str__(self) -> str:
         return " ".join([str(op) for op in self.Operations])
@@ -617,6 +640,8 @@ print("------Options------")
 def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan:
     if CurrPlan.DeadEnd:
         return BestPlan
+    if BestPlan.Completed:
+        return BestPlan.Optimise()
     
     options = find_options(CurrPlan.CurrentState)
     for operator in options:
@@ -630,7 +655,7 @@ def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan
                 return BestPlan
 
             if NewPlan.Completed:
-                NewPlan.Optimize();
+                NewPlan = NewPlan.Optimise();
                 if len(NewPlan) < len(BestPlan):
                     print(f"FOUND GOAL AT For {NewPlan}")
                     print(NewPlan.ChildOf);
