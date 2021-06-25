@@ -14,8 +14,8 @@ from typing import Any, NoReturn
 ## This System Differs from other Planners, because it combines Qualities together, eg. There is a single object for all "at" values.
 ## , ("Working", "High") "Working",
 StartingState = {
-    "at" : [("Actor", "A"),("Broken", "B"), ("Box", "C"), ("Working", "D")],
-    "height" : [("Actor", "Low"),("Broken", "High"), ("Box", "Low"), ("Working", "Low")],
+    "at" : [("Actor", "A"),( "Broken", "B"), ("Box", "C"), ("Working", "B")],
+    "height" : [("Actor", "Low"), ("Broken", "High"), ("Box", "Low"), ("Working", "High")],
     "pushable" : ["Box"], # List of True
     "climbable" : ["Box"], # List of True
     "graspable" : [ "Broken", "Working"] # List of True
@@ -95,15 +95,15 @@ Operators = {
 # Have the Actor replace the Broken Lightbulb with a new Lightbulb
 OriginalGoal = {
     "have" : [("Actor", "Broken")],
-    "at" : [("Actor", "A")],
-    "height" : [("Actor", "Low") ]
+    "at" : [("Actor", "A"), ("Working", "B")],
+    "height" : [("Actor", "Low")]
 }
 
-#   , ("Working", "High"), ("Working", "B")
+#   , ("Working", "High")
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
-def find_things(State : dict[str, Any], Goal):
+def find_things(State : 'dict[str, Any]', Goal):
     Known_Things = set();
     Known_Locations = set();
     for Dict in [State, Goal]:
@@ -146,13 +146,13 @@ def build_goal(State = StartingState, Goal = OriginalGoal):
                 if type(thing) == tuple:
                     fudged = False
                     # Find Values to Fudge
-                    for fudge in Goal_Fudge:
-                        if(fudge[0] == thing[0]):
-                            # Better way to do this?
-                            Goal_Fudge[Goal_Fudge.index(fudge)] = thing
-                            fudged = True
+                    # for fudge in Goal_Fudge:
+                    #     if(fudge[0] == thing[0]):
+                    #         # Better way to do this?
+                    #         Goal_Fudge[Goal_Fudge.index(fudge)] = thing
+                    #         fudged = True
 
-                            break
+                    #         break
                     
                     if not fudged:  
                         Goal_State[Type].append(thing)
@@ -409,7 +409,7 @@ def get_at(State, Thing = "Actor"):
     if var == []: return ""
     else: return var[0]
 
-def find_options(State) -> dict[str, list]:
+def find_options(State) -> 'dict[str, list]':
     """
     Find Options
 
@@ -499,7 +499,7 @@ def debug_text(State):
     #print("Score", distance_between(State, Saved_States["Goal"]))
 
 class Plan:
-    maxPlanDepth = 30
+    maxPlanDepth = 20
     childrenBeforeEndCheck = 5
     worstSimpleScore = 10
     worstGoalDistance = 10
@@ -517,6 +517,8 @@ class Plan:
             self.DeadEnd = False;
 
             self.Options = find_options(self.CurrentState)
+            Operators = [x.Operator for x in self.Operations]
+            self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
             self.StateHash = hash(str(self.CurrentState))
 
             self.Goal = build_goal(self.CurrentState);
@@ -530,7 +532,12 @@ class Plan:
         self.BasicScore = self.Operations.__len__();
 
         self.Options = find_options(self.CurrentState)
-        ## Sort State
+        # Sort the Options based on the already actioned Operations
+        # The idea being that less common Options should be tried first
+        Operators = [x.Operator for x in self.Operations]
+        self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
+
+        ## Sort State to enable good hash times
         for type in self.CurrentState:
             self.CurrentState[type] = sorted(self.CurrentState[type])
 
@@ -562,7 +569,7 @@ class Plan:
         # print("Optimise")
 
         Parent = this;
-        state_list : dict(str, list[Plan]) = dict()
+        state_list : dict(str, 'list[Plan]') = dict()
         while Parent != None:
             plan = Parent
             
@@ -581,7 +588,7 @@ class Plan:
         
         biggest_pair : tuple[Plan, Plan] = None
         distance : int = 0
-        def findDistance(pair : tuple[Plan, Plan]):
+        def findDistance(pair : 'tuple[Plan, Plan]'):
             return abs(pair[0].ChildOf - pair[1].ChildOf);
 
         ## Find the biggest leap to remove
@@ -643,11 +650,11 @@ def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan
     if BestPlan.Completed:
         return BestPlan.Optimise()
     
-    options = find_options(CurrPlan.CurrentState)
-    for operator in options:
+    #options = find_options(CurrPlan.CurrentState)
+    for operator in CurrPlan.SortedOperators:
         if operator == last_operator:
             continue
-        for args in options[operator]:
+        for args in CurrPlan.Options[operator]:
             op = Operation(operator, args)
             NewPlan = Plan(op, CurrPlan)
 
