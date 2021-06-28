@@ -3,103 +3,75 @@ import copy
 # Multiply Arrays
 import math
 from typing import Any, NoReturn
-"""
-["at", "Actor", "A"]
-["height", "Actor", "Low"]
-["pushable", "Box"] #Always True
-["climbable", "Box"] #Always True
-["graspable", "Lightbulb"] #Always True
-"""
 
-## This System Differs from other Planners, because it combines Qualities together, eg. There is a single object for all "at" values.
-## , ("Working", "High") "Working",
+####################################################
+
 StartingState = {
-    "at" : [("Actor", "A"),( "Broken", "B"), ("Box", "C"), ("Working", "B")],
-    "height" : [("Actor", "Low"), ("Broken", "High"), ("Box", "Low"), ("Working", "High")],
-    "pushable" : ["Box"], # List of True
-    "climbable" : ["Box"], # List of True
-    "graspable" : [ "Broken", "Working"] # List of True
-    }
-
-## TODO Think about Held Objects following the Holder
+	"at" : [("Actor", "Home"), ("Scarecrow", "Field"), ("Tools", "Shed"), ("Seeds", "Shed")],
+	"graspable" : ["Tools", "Seeds"],
+	"farmable" : ["Crops"]
+}
 
 Operators = {
-# Move Actor from x to y
-    "Go" : {"Arguments" : ["x", "y"],
-            "Requires": {"at" : [("Actor", "x")], "height" : [("Actor", "Low")]},
-            "Effect" : {"at" : [("Actor", "y"), ("Actor", "x", "Not")]}
-            },
-# Push "push" from x to y
-    "Push" : {"Arguments" : ["push", "x", "y"],
-              "Requires":{"at" : [("Actor","x"), ("push","x")], "height" : [("Actor","Low"), ("push", "Low")], "pushable" : ["push"]},
-              "Effect" : {"at" : [("push","y"), ("Actor","y"), ("push","x", "Not"), ("Actor","x", "Not")]}
-              },
-# Climb Up "climb"
-    "ClimbUp" : {"Arguments" : ["climb"],
-          "Requires":{
-              "at" : [("Actor","x"), ("climb","x")],
-              "height" : [("Actor", "Low"), ("climb", "Low")],
-              "climbable" : ["climb"]
-              },
-          "Effect" : {
-              "height" : [("Actor", "High"), ("Actor", "Low", "Not")],
-              "on" : [("Actor", "climb")]
-              }
-          },
-# Climb Down "climb"
-    "ClimbDown" : {"Arguments" : ["climb"],
-          "Requires":{
-              "at" : [("Actor","x"), ("climb","x")],
-              "height" : [("Actor","High"), ("climb", "Low")],
-              "climbable" : ["climb"]
-              },
-          "Effect" : {
-              "height" : [("Actor", "Low"), ("Actor", "High", "Not")],
-              "on" : [("Actor", "climb", "Not")]
-              }
-          },
-# Pick up "grab"
-    "Grasp" : {"Arguments" : ["grab"],
-          "Requires":{
-              "at" : [("Actor","x"), ("grab","x")],
-              "height" : [("Actor","h"), ("grab", "h")],
-              "graspable" : ["grab"]
-              },
-          "Effect" : {
-              "have" : [("Actor", "grab")],
-              "at":[("grab", "Inventory"), ("grab", "x", "Not")],
-              "height":[("grab", "NA"), ("grab", "h", "Not")]
-              }
-          },
-# Put down "drop"
-    "Drop" : {"Arguments" : ["drop"],
-          "Requires":{"have" : [("Actor", "drop")]},
-          "Effect" : {
-              "have" : [("Actor", "drop", "Not")],
-              "at" : [("drop","x"), ("drop", "Inventory", "Not")],
-              "height" : [("drop", "h"), ("drop", "NA", "Not")]
-              }
-          },
-#TODO These might of been made redundant
-# Carry "carry", this is a workaround to get things to follow the Actor's location
-#     "Carry" : {"Arguments" : ["carry"],
-#           "Requires":{"at" : [("Actor", "x"), ("carry", "y")], "have" : [("Actor", "carry")]},
-#           "Effect" : {"at" : [("carry", "x"), ("carry", "y", "Not")]}
-#           },
-# # Pull down "carry", this is a workaround to get things to follow the Actor's height
-#     "Pull Down" : {"Arguments" : ["carry"],
-#       "Requires":{"height" : [("Actor", "High"), ("carry", "High")], "have" : [("Actor", "carry")]},
-#       "Effect" : {"height" : [("carry", "Low"), ("carry", "Low", "Not")]}
-#       }
-}
-# Have the Actor replace the Broken Lightbulb with a new Lightbulb
-OriginalGoal = {
-    "have" : [("Actor", "Broken")],
-    "at" : [("Actor", "A"), ("Working", "B")],
-    "height" : [("Actor", "Low")]
+	"Go" : {
+	"Arguments" : ["x", "y"],
+	"Requires": {
+		"at" : [("Actor", "x")]
+	},
+	"Effect" : {
+		"at" : [("Actor", "y"), ("Actor", "x", "Not")]
+	}
+	},
+# General Interaction
+	"Grasp" : {
+	"Arguments" : ["grab"],
+	"Requires":{
+		"at" : [("Actor","x"), ("grab","x")],
+		"graspable" : ["grab"]
+	},
+	"Effect" : {
+		"have" : [("Actor", "grab")],
+		"at":[("grab", "Inventory"), ("grab", "x", "Not")]
+	}
+	},
+	"Drop" : {
+	"Arguments" : ["drop"],
+	"Requires":{
+        "at" : [("Actor", "x"), ("drop", "Inventory")]
+        },
+	"Effect" : {
+		"at" : [("drop", "x"), ("drop", "Inventory", "Not")]
+	}
+	},
+# Farming Stuff
+	"Grow" : {
+	"Arguments" : ["seed"],
+	"Requires" : {
+		"at" : [("Actor", "Field"), ("seed", "Inventory")]
+	},
+	"Effect" : {
+		"at" : [("Crops", "Field"), ("seed", "Inventory", "Not")]
+	}
+	},
+
+	"Farm" : {
+	"Arguments" : ["crop"],
+	"Requires" : {
+		"at" : [("crop", "x"), ("Tools", "Inventory"), ("Actor", "Field")],
+		"farmable" : ["crop"]
+	},
+	"Effect" : {
+		"at" : [("crop", "x", "Not"), ("crop", "Inventory")]
+	}
+	}
 }
 
-#   , ("Working", "High")
+OriginalGoal = {
+	"at" : [("Actor", "Home"), ("Crops", "Inventory"), ("Tools", "Shed")],
+}
+
+####################################################
+
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
@@ -435,6 +407,7 @@ def find_options(State) -> 'dict[str, list]':
         # Things
         things = Known_Things
 
+
         Guesses = []
         for index in range(len(args)):
             arg = args[index]
@@ -454,14 +427,15 @@ def find_options(State) -> 'dict[str, list]':
         complete_guesses = [None] * len(Guesses)
 
         # Get the Number of Guesses for each Index
-        count = [len(Guess) for Guess in Guesses]
+        count = [len(Guess) if type(Guess) == list else 1 for Guess in Guesses]
         # Adjust each Guess Index to be equal in length
         for index in range(len(count)):
             # Remove it from the Number of Guesses
             tmp = copy.deepcopy(count)
             del tmp[index]
             # Compute and Apply the amount to multiply to make all Indices the same length
-            complete_guesses[index] = list(Guesses[index]) * math.prod(tmp)
+            value = list(Guesses[index]) if type(Guesses[index]) == list else [Guesses[index]]
+            complete_guesses[index] = value * math.prod(tmp)
 
         good_args = []
         # For the total length of arguments
@@ -482,6 +456,8 @@ def find_options(State) -> 'dict[str, list]':
                 valid_args.append(args)
 
         #print(f"Args: {valid_args}")
+
+        #print(f"{operator}:\n{Guesses}\n{complete_guesses}\n{good_args}\n{valid_args}")
 
         current_options[operator] = valid_args
 
@@ -556,6 +532,8 @@ class Plan:
         #     optimised = self.Optimise()
         # self = optimised
 
+        #print(f"Plan: {self.ThisOperation}\nCurrent Options: {self.Options}\n\n")
+
     def Add(this, operation: Operation):
         this.Operations.append(operation)
         return this
@@ -620,7 +598,7 @@ class Plan:
     def __len__(self) -> int:
         return self.BasicScore
 
-
+print(find_things(StartingState, OriginalGoal))
 StartPlan = Plan(Operation("Start"), None)
 
 
@@ -680,7 +658,11 @@ BestPlan = oldPlan(StartPlan, StartPlan)
 print("Len", BestPlan.Operations.__len__())
 print(BestPlan.CurrentState)
 print(BestPlan)
+
+# print(OriginalGoal)
+# print(BestPlan.Goal)
 #print(Saved_States)
 #print(Saved_States[best_plan])
 print("----End Options----")
+#print(Known_Locations)
 print("End Search")
