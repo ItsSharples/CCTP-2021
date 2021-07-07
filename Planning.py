@@ -1,3 +1,4 @@
+from __future__ import annotations
 # Copy Objects
 import copy
 # Multiply Arrays
@@ -67,7 +68,7 @@ Operators = {
 }
 
 OriginalGoal = {
-	"at" : [("Actor", "Home"), ("Crops", "Inventory"), ("Tools", "Shed")],
+	"at" : [("Actor", "Field"), ("Crops", "Home"), ("Tools", "Shed")],
 }
 
 ####################################################
@@ -480,7 +481,7 @@ class Plan:
     worstSimpleScore = 10
     worstGoalDistance = 10
 
-    def __init__(self, First_Operation, parent):
+    def __init__(self, First_Operation: Operation, parent: Plan):
 
         self.ThisOperation = First_Operation
 
@@ -534,20 +535,21 @@ class Plan:
 
         #print(f"Plan: {self.ThisOperation}\nCurrent Options: {self.Options}\n\n")
 
-    def Add(this, operation: Operation):
-        this.Operations.append(operation)
-        return this
+    def Add(self, operation: Operation):
+        self.Operations.append(operation)
+        return self
 
-    def MoveTo(this, newPlan):
-        this = newPlan
-        return this;
+    def MoveTo(self, newPlan: Plan):
+        self = newPlan
+        return self;
 
-    def Optimise(this):
-        # Go through the Children to find identical states
-        # print("Optimise")
+    def Optimise(self):
+        return self.OptimiseDuplicates();
 
-        Parent = this;
-        state_list : dict(str, 'list[Plan]') = dict()
+    def OptimiseDuplicates(self):
+        # Find Duplicated States and Skip the Steps to go between them
+        Parent = self;
+        state_list : dict[str, list[Plan]] = dict()
         while Parent != None:
             plan = Parent
             
@@ -562,18 +564,17 @@ class Plan:
         # print(f"There are {len(conflicting_states)} states left")
         if len(conflicting_states) <= 0:
             # print(f"Optimised Plan: {this}")
-            return this;
+            return self;
         
         biggest_pair : tuple[Plan, Plan] = None
         distance : int = 0
-        def findDistance(pair : 'tuple[Plan, Plan]'):
-            return abs(pair[0].ChildOf - pair[1].ChildOf);
 
         ## Find the biggest leap to remove
         for array in conflicting_states:
             pairs = list(zip(array, array[1:] + array[:1]))
+            pair: tuple[Plan, Plan]
             for pair in pairs:
-                current_distance = findDistance(pair);
+                current_distance = pair[0].AgeDistance(pair[1]);
                 if current_distance > distance:
                     biggest_pair = pair
                     distance = current_distance
@@ -584,7 +585,7 @@ class Plan:
         ## Start -> oldestPlan | jumpToPlan -> thisPlan
         newPlan = copy.deepcopy(oldestPlan)
         index = jumpToPlan.ChildOf + 1
-        operationsToDo = this.Operations[index:]
+        operationsToDo = self.Operations[index:]
         completeOperations = newPlan.Operations + operationsToDo
         
         for operation in operationsToDo:
@@ -598,71 +599,70 @@ class Plan:
     def __len__(self) -> int:
         return self.BasicScore
 
-print(find_things(StartingState, OriginalGoal))
-StartPlan = Plan(Operation("Start"), None)
+    def AgeDistance(self, other: Plan) -> int:
+        return abs(self.ChildOf - other.ChildOf);
 
+    def GetNthPlan(self, n: int) -> Plan:
+        currPlan = self;
+        while currPlan.ChildOf != n:
+            currPlan = currPlan.Parent
+        return currPlan
 
-#print(distance_between(State, Saved_States["Goal"]))
+def main():
+    print(find_things(StartingState, OriginalGoal))
+    StartPlan = Plan(Operation("Start"), None)
 
-# print(f"This works?: {check_goal(BuiltGoal, BuiltGoal)}")
-# GoodPlan = Plan(Operation("Go", ["A", "C"]), StartPlan)
-# GoodPlan = Plan(Operation("Push", ["Box", "C", "B"]), GoodPlan)
-# GoodPlan = Plan(Operation("ClimbUp", ["Box"]), GoodPlan)
-# GoodPlan = Plan(Operation("Grasp", ["Broken"]), GoodPlan)
-# GoodPlan = Plan(Operation("ClimbDown", ["Box"]), GoodPlan)
-# GoodPlan = Plan(Operation("Go", ["B", "A"]), GoodPlan)
-# Goal = build_goal(GoodPlan.Current)
-# print(f"This works?: {check_goal(GoodPlan.Current, Goal)}")
-# print(GoodPlan.Current)
-# print(Goal)
-print("Actor is currently at:", get_at(StartingState, "Actor"))
+    print("Actor is currently at:", get_at(StartingState, "Actor"))
 
-options = find_options(StartingState)
-print("--- Start State ---")
-debug_text(StartingState)
-print("------Options------")
+    options = find_options(StartingState)
+    print("--- Start State ---")
+    debug_text(StartingState)
+    print("------Options------")
 
-def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan:
-    if CurrPlan.DeadEnd:
+    def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan:
+        if CurrPlan.DeadEnd:
+            return BestPlan
+        if BestPlan.Completed:
+            return BestPlan.Optimise()
+
+        #options = find_options(CurrPlan.CurrentState)
+        for operator in CurrPlan.SortedOperators:
+            if operator == last_operator:
+                continue
+            for args in CurrPlan.Options[operator]:
+                op = Operation(operator, args)
+                NewPlan = Plan(op, CurrPlan)
+
+                if NewPlan.DeadEnd:
+                    return BestPlan
+
+                if NewPlan.Completed:
+                    NewPlan = NewPlan.Optimise();
+                    if len(NewPlan) < len(BestPlan):
+                        print(f"FOUND GOAL AT For {NewPlan}")
+                        print(NewPlan.ChildOf);
+                        BestPlan = NewPlan
+                    return BestPlan
+
+                BestPlan = oldPlan(NewPlan, BestPlan, operator)
+
         return BestPlan
-    if BestPlan.Completed:
-        return BestPlan.Optimise()
-    
-    #options = find_options(CurrPlan.CurrentState)
-    for operator in CurrPlan.SortedOperators:
-        if operator == last_operator:
-            continue
-        for args in CurrPlan.Options[operator]:
-            op = Operation(operator, args)
-            NewPlan = Plan(op, CurrPlan)
-
-            if NewPlan.DeadEnd:
-                return BestPlan
-
-            if NewPlan.Completed:
-                NewPlan = NewPlan.Optimise();
-                if len(NewPlan) < len(BestPlan):
-                    print(f"FOUND GOAL AT For {NewPlan}")
-                    print(NewPlan.ChildOf);
-                    BestPlan = NewPlan
-                return BestPlan
-
-            BestPlan = oldPlan(NewPlan, BestPlan, operator)
-
-    return BestPlan
 
 
-#print(StartingState)
-print("-----PLANNING------")
-BestPlan = oldPlan(StartPlan, StartPlan)
-print("Len", BestPlan.Operations.__len__())
-print(BestPlan.CurrentState)
-print(BestPlan)
+    #print(StartingState)
+    print("-----PLANNING------")
+    BestPlan = oldPlan(StartPlan, StartPlan)
+    print("Len", BestPlan.Operations.__len__())
+    print(BestPlan.CurrentState)
+    print(BestPlan)
+    print(BestPlan.GetNthPlan(4))
+    # print(OriginalGoal)
+    # print(BestPlan.Goal)
+    #print(Saved_States)
+    #print(Saved_States[best_plan])
+    print("----End Options----")
+    #print(Known_Locations)
+    print("End Search")
 
-# print(OriginalGoal)
-# print(BestPlan.Goal)
-#print(Saved_States)
-#print(Saved_States[best_plan])
-print("----End Options----")
-#print(Known_Locations)
-print("End Search")
+if __name__ == "__main__":
+    main()
