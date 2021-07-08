@@ -1,8 +1,7 @@
 
 from Planner import Plan, Operation
 from Planning import *
-from State import OriginalGoal, StartingState
-import State
+import State, Plans
 
 def main():
     StartingState = State.StartingState
@@ -23,39 +22,11 @@ def main():
     debug_text(StartingState)
     print("------Options------")
 
-    def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan:
-        if CurrPlan.DeadEnd:
-            return BestPlan
-        if BestPlan.Completed:
-            return BestPlan.Optimise()
-
-        #options = find_options(CurrPlan.CurrentState)
-        for operator in CurrPlan.SortedOperators:
-            if operator == last_operator:
-                continue
-            for args in CurrPlan.Options[operator]:
-                op = Operation(operator, args)
-                NewPlan = Plan(op, CurrPlan)
-
-                if NewPlan.DeadEnd:
-                    return BestPlan
-
-                if NewPlan.Completed:
-                    NewPlan = NewPlan.Optimise();
-                    if len(NewPlan) < len(BestPlan):
-                        print(f"FOUND GOAL AT For {NewPlan}")
-                        print(NewPlan.ChildOf);
-                        BestPlan = NewPlan
-                    return BestPlan
-
-                BestPlan = oldPlan(NewPlan, BestPlan, operator)
-
-        return BestPlan
 
 
     #print(StartingState)
     print("-----PLANNING------")
-    BestPlan = oldPlan(StartPlan, StartPlan)
+    BestPlan = Plans.oldPlan(StartPlan, StartPlan)
     print("Len", BestPlan.Operations.__len__())
     print(BestPlan.CurrentState)
     print(BestPlan)
