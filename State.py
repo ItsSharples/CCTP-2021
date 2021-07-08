@@ -64,3 +64,8 @@ Operators : StateType = {
 OriginalGoal : StateType = {
 	"at" : [("Actor", "Field"), ("Crops", "Home"), ("Tools", "Shed")],
 }
+####################################################
+
+
+# Things that aren't arguments, but can be used to make Operations more generic
+Known_Fudges = ["x", "y", "c", "h"]

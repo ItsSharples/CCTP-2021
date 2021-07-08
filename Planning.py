@@ -6,10 +6,9 @@ import math
 
 import State
 from Operation import Operation
-from State import StateType, Operators
+from State import StateType, Operators, Known_Fudges
 
-# Things that aren't arguments, but can be used to make Operations more generic
-Known_Fudges = ["x", "y", "c", "h"]
+
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
 def find_things(State : StateType, Goal : StateType):
     Known_Things = set();
