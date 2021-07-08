@@ -3,80 +3,15 @@ from __future__ import annotations
 import copy
 # Multiply Arrays
 import math
-from typing import Any, NoReturn
 
-####################################################
-
-StartingState = {
-	"at" : [("Actor", "Home"), ("Scarecrow", "Field"), ("Tools", "Shed"), ("Seeds", "Shed")],
-	"graspable" : ["Tools", "Seeds"],
-	"farmable" : ["Crops"]
-}
-
-Operators = {
-	"Go" : {
-	"Arguments" : ["x", "y"],
-	"Requires": {
-		"at" : [("Actor", "x")]
-	},
-	"Effect" : {
-		"at" : [("Actor", "y"), ("Actor", "x", "Not")]
-	}
-	},
-# General Interaction
-	"Grasp" : {
-	"Arguments" : ["grab"],
-	"Requires":{
-		"at" : [("Actor","x"), ("grab","x")],
-		"graspable" : ["grab"]
-	},
-	"Effect" : {
-		"have" : [("Actor", "grab")],
-		"at":[("grab", "Inventory"), ("grab", "x", "Not")]
-	}
-	},
-	"Drop" : {
-	"Arguments" : ["drop"],
-	"Requires":{
-        "at" : [("Actor", "x"), ("drop", "Inventory")]
-        },
-	"Effect" : {
-		"at" : [("drop", "x"), ("drop", "Inventory", "Not")]
-	}
-	},
-# Farming Stuff
-	"Grow" : {
-	"Arguments" : ["seed"],
-	"Requires" : {
-		"at" : [("Actor", "Field"), ("seed", "Inventory")]
-	},
-	"Effect" : {
-		"at" : [("Crops", "Field"), ("seed", "Inventory", "Not")]
-	}
-	},
-
-	"Farm" : {
-	"Arguments" : ["crop"],
-	"Requires" : {
-		"at" : [("crop", "x"), ("Tools", "Inventory"), ("Actor", "Field")],
-		"farmable" : ["crop"]
-	},
-	"Effect" : {
-		"at" : [("crop", "x", "Not"), ("crop", "Inventory")]
-	}
-	}
-}
-
-OriginalGoal = {
-	"at" : [("Actor", "Field"), ("Crops", "Home"), ("Tools", "Shed")],
-}
-
-####################################################
+import State
+from Operation import Operation
+from State import StateType, Operators
 
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
-def find_things(State : 'dict[str, Any]', Goal):
+def find_things(State : StateType, Goal : StateType):
     Known_Things = set();
     Known_Locations = set();
     for Dict in [State, Goal]:
@@ -93,7 +28,7 @@ def find_things(State : 'dict[str, Any]', Goal):
 
 # Find States of things that don't exist in the Initial State, but can exist
 # For example, Grasp affects "have", but "have" is not in the Initial State
-def build_state(State):
+def build_state(State: StateType):
     for Operator in Operators:
         for Effect in Operators[Operator]["Effect"]:
             if Effect not in State:
@@ -101,7 +36,7 @@ def build_state(State):
                 State[Effect] = []
     return State
 
-def build_goal(State = StartingState, Goal = OriginalGoal):
+def build_goal(State : StateType, Goal : StateType):
     """
     Convert the Current State into one that complies with the goal
     """
@@ -135,19 +70,6 @@ def build_goal(State = StartingState, Goal = OriginalGoal):
 
     return Goal_State
 
-(Known_Things, Known_Locations) = find_things(StartingState, OriginalGoal)
-
-StartingState = build_state(StartingState)
-BuiltGoal = build_goal(StartingState)
-
-class Operation:
-    def __init__(this, Operator : str, Args : list = []):
-        this.Operator = Operator;
-        this.Args = Args;
-
-    def __str__(self) -> str:
-        return f"{self.Operator} {self.Args}"
-
 def distance_between(State_A, State_B ) -> int:
     score = 0
     missing = []
@@ -166,7 +88,7 @@ def distance_between(State_A, State_B ) -> int:
     #print(missing)
     return len(missing)
 
-def check_goal(State : StartingState, Goal : StartingState) -> bool:
+def check_goal(State : StateType, Goal : StateType) -> bool:
     # If all goal outcomes are in the current state
     #return all([True for outcome in Goal[kind] if outcome in State[kind]] for kind in Goal)
 
@@ -269,7 +191,7 @@ def Check_Operation(State, Operation : Operation):
 
     return True
 
-def DoOperation(OriginalState : StartingState, Operation : Operation, already_checked = False) -> StartingState:
+def DoOperation(OriginalState : dict[str, dict], Operation : Operation, already_checked = False) -> StateType:
     """
     Apply an Operation to a Given State, optionally bypassing validity checks
     """
@@ -279,8 +201,6 @@ def DoOperation(OriginalState : StartingState, Operation : Operation, already_ch
     Substitutions = {}
     Requires = Operator["Requires"]
     Effect = Operator["Effect"]
-
-    
 
     # Fulfil Requirements
     if len(Arguments) != len(Operation.Args):
@@ -382,7 +302,10 @@ def get_at(State, Thing = "Actor"):
     if var == []: return ""
     else: return var[0]
 
-def find_options(State) -> 'dict[str, list]':
+
+(Known_Things, Known_Locations) = find_things(State.StartingState, State.OriginalGoal)
+
+def find_options(State) -> StateType:
     """
     Find Options
 
@@ -474,195 +397,3 @@ def debug_text(State):
     print(f"Current Options: {find_options(State)}")
     print(f"Num Options {simple_score(State)}")
     #print("Score", distance_between(State, Saved_States["Goal"]))
-
-class Plan:
-    maxPlanDepth = 20
-    childrenBeforeEndCheck = 5
-    worstSimpleScore = 10
-    worstGoalDistance = 10
-
-    def __init__(self, First_Operation: Operation, parent: Plan):
-
-        self.ThisOperation = First_Operation
-
-        if self.ThisOperation.Operator == "Start":
-            self.Parent = None
-            self.Operations = [self.ThisOperation]
-            self.CurrentState = StartingState
-            self.ChildOf = 0;
-            self.BasicScore = 9999999999;
-            self.DeadEnd = False;
-
-            self.Options = find_options(self.CurrentState)
-            Operators = [x.Operator for x in self.Operations]
-            self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
-            self.StateHash = hash(str(self.CurrentState))
-
-            self.Goal = build_goal(self.CurrentState);
-            self.Completed = False;
-            return;
-
-        self.Parent : Plan = parent
-        self.ChildOf = self.Parent.ChildOf + 1
-        self.Operations : list[Operation] = self.Parent.Operations + [self.ThisOperation];
-        self.CurrentState = DoOperation(self.Parent.CurrentState, self.ThisOperation);
-        self.BasicScore = self.Operations.__len__();
-
-        self.Options = find_options(self.CurrentState)
-        # Sort the Options based on the already actioned Operations
-        # The idea being that less common Options should be tried first
-        Operators = [x.Operator for x in self.Operations]
-        self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
-
-        ## Sort State to enable good hash times
-        for type in self.CurrentState:
-            self.CurrentState[type] = sorted(self.CurrentState[type])
-
-        self.StateHash: int = hash(str(self.CurrentState))
-
-        self.Goal = build_goal(self.CurrentState);
-        self.Completed = check_goal(self.CurrentState, self.Goal);
-
-        self.SimpleScore = simple_score(self.CurrentState)
-        self.DistanceToGoal = distance_between(self.CurrentState, self.Goal)
-
-        self.DeadEnd = (self.ChildOf >= Plan.maxPlanDepth) or ((self.ChildOf >= Plan.childrenBeforeEndCheck) and (self.SimpleScore >= Plan.worstSimpleScore) and (self.DistanceToGoal >= Plan.worstGoalDistance))
-
-        # optimised = self.Optimise()
-        # while self.StateHash != optimised.StateHash:
-        #     optimised = self.Optimise()
-        # self = optimised
-
-        #print(f"Plan: {self.ThisOperation}\nCurrent Options: {self.Options}\n\n")
-
-    def Add(self, operation: Operation):
-        self.Operations.append(operation)
-        return self
-
-    def MoveTo(self, newPlan: Plan):
-        self = newPlan
-        return self;
-
-    def Optimise(self):
-        return self.OptimiseDuplicates();
-
-    def OptimiseDuplicates(self):
-        # Find Duplicated States and Skip the Steps to go between them
-        Parent = self;
-        state_list : dict[str, list[Plan]] = dict()
-        while Parent != None:
-            plan = Parent
-            
-            if plan.StateHash in state_list:
-                state_list[plan.StateHash].append(plan)
-            else:
-                state_list[plan.StateHash] = [plan]
-
-            Parent = Parent.Parent
-
-        conflicting_states = [plan_list for plan_list in state_list.values() if len(plan_list) > 1]
-        # print(f"There are {len(conflicting_states)} states left")
-        if len(conflicting_states) <= 0:
-            # print(f"Optimised Plan: {this}")
-            return self;
-        
-        biggest_pair : tuple[Plan, Plan] = None
-        distance : int = 0
-
-        ## Find the biggest leap to remove
-        for array in conflicting_states:
-            pairs = list(zip(array, array[1:] + array[:1]))
-            pair: tuple[Plan, Plan]
-            for pair in pairs:
-                current_distance = pair[0].AgeDistance(pair[1]);
-                if current_distance > distance:
-                    biggest_pair = pair
-                    distance = current_distance
-        
-        ## Update the Plan with this removed from it.
-        (oldestPlan, jumpToPlan) = sorted(biggest_pair, key=lambda plan: plan.ChildOf)
-        ## Reconstruct the plan, with three (or four) markers;
-        ## Start -> oldestPlan | jumpToPlan -> thisPlan
-        newPlan = copy.deepcopy(oldestPlan)
-        index = jumpToPlan.ChildOf + 1
-        operationsToDo = self.Operations[index:]
-        completeOperations = newPlan.Operations + operationsToDo
-        
-        for operation in operationsToDo:
-            newPlan = Plan(operation, newPlan)
-
-        return newPlan.Optimise()
-
-    def __str__(self) -> str:
-        return " ".join([str(op) for op in self.Operations])
-
-    def __len__(self) -> int:
-        return self.BasicScore
-
-    def AgeDistance(self, other: Plan) -> int:
-        return abs(self.ChildOf - other.ChildOf);
-
-    def GetNthPlan(self, n: int) -> Plan:
-        currPlan = self;
-        while currPlan.ChildOf != n:
-            currPlan = currPlan.Parent
-        return currPlan
-
-def main():
-    print(find_things(StartingState, OriginalGoal))
-    StartPlan = Plan(Operation("Start"), None)
-
-    print("Actor is currently at:", get_at(StartingState, "Actor"))
-
-    options = find_options(StartingState)
-    print("--- Start State ---")
-    debug_text(StartingState)
-    print("------Options------")
-
-    def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan:
-        if CurrPlan.DeadEnd:
-            return BestPlan
-        if BestPlan.Completed:
-            return BestPlan.Optimise()
-
-        #options = find_options(CurrPlan.CurrentState)
-        for operator in CurrPlan.SortedOperators:
-            if operator == last_operator:
-                continue
-            for args in CurrPlan.Options[operator]:
-                op = Operation(operator, args)
-                NewPlan = Plan(op, CurrPlan)
-
-                if NewPlan.DeadEnd:
-                    return BestPlan
-
-                if NewPlan.Completed:
-                    NewPlan = NewPlan.Optimise();
-                    if len(NewPlan) < len(BestPlan):
-                        print(f"FOUND GOAL AT For {NewPlan}")
-                        print(NewPlan.ChildOf);
-                        BestPlan = NewPlan
-                    return BestPlan
-
-                BestPlan = oldPlan(NewPlan, BestPlan, operator)
-
-        return BestPlan
-
-
-    #print(StartingState)
-    print("-----PLANNING------")
-    BestPlan = oldPlan(StartPlan, StartPlan)
-    print("Len", BestPlan.Operations.__len__())
-    print(BestPlan.CurrentState)
-    print(BestPlan)
-    print(BestPlan.GetNthPlan(4))
-    # print(OriginalGoal)
-    # print(BestPlan.Goal)
-    #print(Saved_States)
-    #print(Saved_States[best_plan])
-    print("----End Options----")
-    #print(Known_Locations)
-    print("End Search")
-
-if __name__ == "__main__":
-    main()
