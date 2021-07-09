@@ -36,7 +36,7 @@ class Plan:
         self.Parent : Plan = parent
         self.ChildOf = self.Parent.ChildOf + 1
         self.Operations : list[Operation] = self.Parent.Operations + [self.ThisOperation];
-        self.CurrentState = DoOperation(self.Parent.CurrentState, self.ThisOperation);
+        self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation));
         self.BasicScore = self.Operations.__len__();
 
         self.Options = find_options(self.CurrentState)
@@ -44,10 +44,6 @@ class Plan:
         # The idea being that less common Options should be tried first
         Operators = [x.Operator for x in self.Operations]
         self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
-
-        ## Sort State to enable good hash times
-        for type in self.CurrentState:
-            self.CurrentState[type] = sorted(self.CurrentState[type])
 
         self.StateHash: int = hash(str(self.CurrentState))
 

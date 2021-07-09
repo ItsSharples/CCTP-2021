@@ -1,4 +1,5 @@
 
+from Disaster import DoDistaster
 from Planner import Plan, Operation
 from Planning import *
 import State, Plans
@@ -30,7 +31,15 @@ def main():
     print("Len", BestPlan.Operations.__len__())
     print(BestPlan.CurrentState)
     print(BestPlan)
-    print(BestPlan.GetNthPlan(4))
+    plan = BestPlan.GetNthPlan(4)
+    plan.CurrentState = DoDistaster(plan.CurrentState)
+
+    BestPlan = Plans.oldPlan(plan, StartPlan)
+    print("Len", BestPlan.Operations.__len__())
+    print(BestPlan.CurrentState)
+    print(BestPlan)
+    plan = BestPlan.GetNthPlan(4)
+    newState = DoDistaster(plan.CurrentState)
     # print(OriginalGoal)
     # print(BestPlan.Goal)
     #print(Saved_States)

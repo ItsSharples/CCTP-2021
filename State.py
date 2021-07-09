@@ -69,3 +69,12 @@ OriginalGoal : StateType = {
 
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
+
+
+#########
+
+def SortState(input: StateType) -> StateType:
+	## Sort State to enable good hash
+	for type in input:
+		input[type] = sorted(input[type])
+	return input
