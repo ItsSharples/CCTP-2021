@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 
 from Planning import *
-import State
+import State, sys
 
 
 class Plan:
@@ -21,7 +21,6 @@ class Plan:
             self.Operations = [self.ThisOperation]
             self.CurrentState = State.StartingState
             self.ChildOf = 0;
-            self.BasicScore = 9999999999;
             self.DeadEnd = False;
 
             self.Options = find_options(self.CurrentState)
@@ -36,7 +35,6 @@ class Plan:
         self.Parent : Plan = parent
         self.ChildOf = self.Parent.ChildOf + 1
         self.Operations : list[Operation] = self.Parent.Operations + [self.ThisOperation];
-        self.BasicScore = self.Operations.__len__();
 
         self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation));
 
@@ -133,13 +131,21 @@ class Plan:
         return " ".join([str(op) for op in self.Operations])
 
     def __len__(self) -> int:
-        return self.BasicScore
+        return self.NumSteps
 
+    @property
+    def NumSteps(self) -> int:
+        
+        if self.Parent == None:
+            return sys.maxsize;
+        else:
+            return self.Operations.__len__();
+    
     def AgeDistance(self, other: Plan) -> int:
         return abs(self.ChildOf - other.ChildOf);
 
     def GetNthStep(self, n: int) -> Plan:
         currPlan = self;
-        while currPlan.ChildOf != n:
+        while currPlan.ChildOf > n:
             currPlan = currPlan.Parent
         return currPlan

@@ -29,11 +29,11 @@ def main():
 
     #print(StartingState)
     print("-----PLANNING------")
+    while not currentJournal.IsJournalComplete:
+        currentJournal.DoDay();
+        currentJournal.DoDisaster();
 
-    currentJournal.DoDay();
-    currentJournal.DoDisaster();
-    currentJournal.DoDay();
-    currentJournal.DoDisaster();
+    print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.CurrentPlan.NumSteps} Steps) to complete the Task")
 
     # BestPlan = Plans.oldPlan(StartPlan, StartPlan)
     # print("Len", BestPlan.Operations.__len__())

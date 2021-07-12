@@ -32,10 +32,18 @@ class Journal:
     @property
     def StepsSoFar(self) -> int:
         return self.Day * self.StepsPerDay
-        
+
     @property
     def DaysPassed(self) -> int:
         return self.Day - 1;
+
+    @property
+    def StepsTaken(self) -> int:
+        return self.CurrentPlan.Steps;
+
+    @property
+    def IsJournalComplete(self) -> bool:
+        return self.CurrentPlan.Completed;
 
     def DoDay(self):
         # Maybe Do the Planning In the background before needing it?
