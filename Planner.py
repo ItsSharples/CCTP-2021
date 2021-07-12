@@ -36,23 +36,12 @@ class Plan:
         self.Parent : Plan = parent
         self.ChildOf = self.Parent.ChildOf + 1
         self.Operations : list[Operation] = self.Parent.Operations + [self.ThisOperation];
-        self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation));
         self.BasicScore = self.Operations.__len__();
 
-        self.Options = find_options(self.CurrentState)
-        # Sort the Options based on the already actioned Operations
-        # The idea being that less common Options should be tried first
-        Operators = [x.Operator for x in self.Operations]
-        self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
+        self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation));
 
-        self.StateHash: int = hash(str(self.CurrentState))
-
-        self.Goal = build_goal(self.CurrentState, State.OriginalGoal);
-        self.Completed = check_goal(self.CurrentState, self.Goal);
-
-        self.SimpleScore = simple_score(self.CurrentState)
-        self.DistanceToGoal = distance_between(self.CurrentState, self.Goal)
-
+        self.UpdateState(self.CurrentState);
+        
         self.DeadEnd = (self.ChildOf >= Plan.maxPlanDepth) or ((self.ChildOf >= Plan.childrenBeforeEndCheck) and (self.SimpleScore >= Plan.worstSimpleScore) and (self.DistanceToGoal >= Plan.worstGoalDistance))
 
         # optimised = self.Optimise()
@@ -61,6 +50,26 @@ class Plan:
         # self = optimised
 
         #print(f"Plan: {self.ThisOperation}\nCurrent Options: {self.Options}\n\n")
+
+    def UpdateState(self, newState: StateType):
+        self.Options = find_options(newState)
+        self.UpdateOptions();
+
+        self.StateHash: int = hash(str(newState))
+
+        self.Goal = build_goal(newState, State.OriginalGoal);
+        self.Completed = check_goal(newState, self.Goal);
+
+        self.SimpleScore = simple_score(newState)
+        self.DistanceToGoal = distance_between(newState, self.Goal)
+        return
+
+    def UpdateOptions(self):
+        # Sort the Options based on the already actioned Operations
+        # The idea being that less common Options should be tried first
+        Operators = [x.Operator for x in self.Operations]
+        self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
+
 
     def Add(self, operation: Operation):
         self.Operations.append(operation)
@@ -129,7 +138,7 @@ class Plan:
     def AgeDistance(self, other: Plan) -> int:
         return abs(self.ChildOf - other.ChildOf);
 
-    def GetNthPlan(self, n: int) -> Plan:
+    def GetNthStep(self, n: int) -> Plan:
         currPlan = self;
         while currPlan.ChildOf != n:
             currPlan = currPlan.Parent

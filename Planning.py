@@ -35,7 +35,7 @@ def build_state(State: StateType):
                 State[Effect] = []
     return State
 
-def build_goal(State : StateType, Goal : StateType):
+def build_goal(State : StateType, Goal : StateType) -> StateType:
     """
     Convert the Current State into one that complies with the goal
     """
