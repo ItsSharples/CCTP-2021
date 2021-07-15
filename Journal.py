@@ -1,6 +1,6 @@
 
 
-from Disaster import DoDistaster
+from Disaster import DoDistaster, MoveRandomThing
 from Planner import Plan
 from Operation import Operation
 
