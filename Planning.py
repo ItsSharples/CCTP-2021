@@ -190,59 +190,26 @@ def Check_Operation(State, Operation : Operation):
 
     return True
 
-def DoOperation(OriginalState : dict[str, dict], Operation : Operation, already_checked = False) -> StateType:
+def DoOperation(OriginalState : StateType, Operation : Operation, already_checked = False) -> StateType:
     """
     Apply an Operation to a Given State, optionally bypassing validity checks
     """
     #print(f"Operation: {Operator}")
-    Operator = Operators[Operation.Operator]
-    Arguments = Operator["Arguments"]
-    Substitutions = {}
-    Requires = Operator["Requires"]
-    Effect = Operator["Effect"]
-
-    # Fulfil Requirements
-    if len(Arguments) != len(Operation.Args):
-        print("Uh oh")
-        return OriginalState
+    Substitutions = Operation.Substitutions
+    Requires = Operation.Requires
+    Effect = Operation.Effect
 
     State = copy.deepcopy(OriginalState)
     # Define Substitutions
     # = {What to Substitute : To What} for each thing to substitute
-    Substitutions = {Arguments[index] : Operation.Args[index] for index in range(len(Arguments))}
 
-    def check_and_substitute(x):
-        if type(req) != tuple:
-            return check_and_substitute_value(req)
-        else:
-            return check_and_substitute_tuple(req)
-
-    def check_and_substitute_value(x):
-        # Return the Substitution if there is one, else return the original value
-        return Substitutions[x] if x in Substitutions else x
-    
-    def check_and_substitute_tuple(Tuple, out_Not = False):
-        outlist = [Substitutions[x] if x in Substitutions else x for x in Tuple]
-        Not = False
-        # Remove all modifier values ("Not")
-        for val in outlist:
-            if val == "Not":
-                Not = True
-                del outlist[outlist.index(val)]
-                
-        Tuple = tuple(outlist)
-        if len(Tuple) == 1:
-            Tuple = (Tuple[0])
-
-        # If I want to out Not, create a List, else just return the tuple
-        return Tuple if not out_Not else [Tuple, Not]
 
     # Find any Fudges
     for List in [Requires, Effect]:
         for Type in List:
             for req in List[Type]:
                 # Substitute any Known Values
-                req = check_and_substitute(req)
+                req = Operation.check_and_substitute(req)
 
                 # Find any unknown values left over
                 unknowns = [val in Known_Fudges for val in req]
@@ -252,7 +219,7 @@ def DoOperation(OriginalState : dict[str, dict], Operation : Operation, already_
                 # If some are unknown, Find them out
                 if any(unknowns):
                     for x in req:
-                        x = check_and_substitute_value(x)
+                        x = Operation.check_and_substitute_value(x)
                         if x in Known_Fudges:
                             # Find the Value
                             thing = [val for val in State[Type] if req[0] == val[0]][0]
@@ -266,7 +233,7 @@ def DoOperation(OriginalState : dict[str, dict], Operation : Operation, already_
     # Check Requirements
         for require_type in Requires:
             for req in Requires[require_type]:
-                req = check_and_substitute(req)
+                req = Operation.check_and_substitute(req)
                 if req not in State[require_type]:
                     print("Cannot Complete Act Requirement")
                     print(f"Requirement: {req}")
@@ -275,11 +242,9 @@ def DoOperation(OriginalState : dict[str, dict], Operation : Operation, already_
                     return OriginalState
 
     # Act Out the Operation
-    #print(f"Act out {Operator}")
     for action_type in Effect:
         for action in Effect[action_type]:
-            thing, Not = check_and_substitute_tuple(action, True)
-            #print(action, thing, Not)
+            thing, Not = Operation.check_and_substitute_tuple(action, True)
             compare = State[action_type]
             # If In But is Not
             if thing in compare:

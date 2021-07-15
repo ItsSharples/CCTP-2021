@@ -1,5 +1,5 @@
 ####################################################
-StateType = 'dict[str, dict]'
+StateType = "dict[str, Any]"
 
 StartingState : StateType = {
 	"at" : [("Actor", "Home"), ("Scarecrow", "Field"), ("Tools", "Shed"), ("Seeds", "Shed")],
