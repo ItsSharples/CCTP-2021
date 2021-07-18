@@ -328,7 +328,7 @@ def find_options(State) -> StateType:
         good_args = []
         # For the total length of arguments
         for index in range(math.prod(count)):
-            # Transfer Guesses from n x m arrays, to m x n arrays
+            # Transfer Guesses from n × m arrays, to m × n arrays
             out = []
             # For each index
             for jndex in range(len(complete_guesses)):
@@ -361,3 +361,10 @@ def debug_text(State):
     print(f"Current Options: {find_options(State)}")
     print(f"Num Options {simple_score(State)}")
     #print("Score", distance_between(State, Saved_States["Goal"]))
+
+def find_valid_answers_for_disaster(State, Disaster) -> list[Operation]:
+
+
+
+
+    return list()

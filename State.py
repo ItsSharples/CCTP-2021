@@ -1,5 +1,12 @@
 ####################################################
-StateType = "dict[str, Any]"
+from typing import Any, Dict, List, Tuple
+
+
+DisasterType = Dict[str, Any]
+
+StateContents = List[Tuple[str,str]]
+OperatorType = Dict[str, (List[str] or Dict[str, StateContents])]
+StateType = Dict[str, StateContents]
 
 StartingState : StateType = {
 	"at" : [("Actor", "Home"), ("Scarecrow", "Field"), ("Tools", "Shed"), ("Seeds", "Shed")],
@@ -7,7 +14,7 @@ StartingState : StateType = {
 	"farmable" : ["Crops"]
 }
 
-Operators : StateType = {
+Operators : OperatorType = {
 	"Go" : {
 	"Arguments" : ["x", "y"],
 	"Requires": {
@@ -60,6 +67,18 @@ Operators : StateType = {
 	}
 	}
 }
+
+Disasters: Dict[str, DisasterType] = {
+	"Move" : {
+		"Arguments" : ["thing", "location"],
+		"Effect" : {
+			"at" : [("thing", "whereWas", "Not"), ("thing", "location")]
+		}
+	}
+}
+
+
+
 
 OriginalGoal : StateType = {
 	"at" : [("Actor", "Field"), ("Crops", "Home"), ("Tools", "Shed")],

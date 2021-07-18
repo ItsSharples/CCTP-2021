@@ -1,20 +1,24 @@
 
 
-from State import StateType
+from State import Disasters, StateContents, StateType
 import random
 
 def DoDistaster(CurrentState : StateType) -> StateType:
 
-    at : list = CurrentState["at"]
-    new_at = list()
+    at = CurrentState["at"]
+    new_at: StateContents = list()
     for pair in at:
         if pair[0] != "Scarecrow":
             new_at.append(pair)
     new_at.append(("Scarecrow", "Far Away"))
     CurrentState["at"] = new_at
 
+    Disaster = Disasters["Move"]
+    # Find Valid Arguments
+    
 
-    CurrentState = MoveRandomThingSafe(CurrentState, "Home")
+
+    # CurrentState = MoveRandomThingSafe(CurrentState, "Home")
     return CurrentState
 
 
