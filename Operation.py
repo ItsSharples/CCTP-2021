@@ -1,4 +1,5 @@
 
+from typing import Dict, List
 from State import Operators
 
 
@@ -9,22 +10,26 @@ class Operation:
     '''
     def __init__(this, Operator : str, Args : list = []):
         this.Operator = Operator;
-        this.Args = Args;
+        this.Arguments = Args;
+        this.Requires = None;
+        this.Substitutions = None;
 
         # This is just a Null Operation
         if Operator == "Start":
             return
+        # A Disaster Operation
+        if Operator == "Disaster":
+            return
 
-        this.OperatorSheet: dict = Operators[Operator]
-
-        this.Arguments = this.OperatorSheet["Arguments"]
+        this.OperatorSheet: Operator = Operators[Operator]
+        this.Arguments : list[str] = this.OperatorSheet["Arguments"]
 
         # Fulfil Requirements
         if len(Args) != len(this.Arguments):
             raise ValueError(f"Args does not match Number of Arguments for this Operation (Needs {len(this.Arguments)}, Has {len(Args)}).")
 
-        this.Substitutions  = {this.Arguments[index] : this.Args[index] for index in range(len(this.Arguments))}
-                
+        this.Substitutions : Dict[str, str] = {this.Arguments[index] : Args[index] for index in range(len(this.Arguments))}
+        this.Arguments = Args    
         this.Requires = this.OperatorSheet["Requires"]
         this.Effect = this.OperatorSheet["Effect"]
 
@@ -55,4 +60,4 @@ class Operation:
         return this.Substitutions[x] if x in this.Substitutions else x
     
     def __str__(self) -> str:
-        return f"{self.Operator} {self.Args}"
+        return f"{self.Operator} {self.Arguments}"

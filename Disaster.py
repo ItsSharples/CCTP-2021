@@ -1,6 +1,7 @@
 
 
-from State import Disasters, StateContents, StateType
+# from Planning import find_disaster_options
+from State import Disasters, IsSpecialLocation, Special_Locations, StateContents, StateType
 import random
 
 def DoDistaster(CurrentState : StateType) -> StateType:
@@ -13,21 +14,14 @@ def DoDistaster(CurrentState : StateType) -> StateType:
     new_at.append(("Scarecrow", "Far Away"))
     CurrentState["at"] = new_at
 
-    Disaster = Disasters["Move"]
+    # SelectedDisaster = Disasters["Move"]
     # Find Valid Arguments
-    
+    # find_disaster_options(CurrentState, SelectedDisaster)
 
 
     # CurrentState = MoveRandomThingSafe(CurrentState, "Home")
     return CurrentState
 
-
-def ScarecrowTheft(inputState: StateType) -> StateType:
-    '''
-        
-    '''
-
-    return None
 
 
 def PickRandomThingAt(inputState: StateType) -> 'tuple[tuple[str,str], int]':
@@ -36,8 +30,6 @@ def PickRandomThingAt(inputState: StateType) -> 'tuple[tuple[str,str], int]':
     chosen_tuple = locations[index]
     return (chosen_tuple, index)
 
-def IsInvalidLocation(location: str) -> bool:
-    return location in ["Inventory", "Far Away"]
 
 def MoveItem(inputState: StateType, index: int, new_tuple: 'tuple[str, str]') -> StateType:
     # Update the Arrays 
@@ -49,7 +41,7 @@ def MoveRandomThing(inputState: StateType, whereTo: str) -> StateType:
     Randomly selects a Random Thing, and changes it's location to {whereTo}
     '''
     chosen_tuple, index = PickRandomThingAt(inputState)
-    while IsInvalidLocation(chosen_tuple[1]):
+    while IsSpecialLocation(chosen_tuple[1]):
         chosen_tuple, index = PickRandomThingAt(inputState)
     
     return MoveItem(inputState, index, (chosen_tuple[0], whereTo))
@@ -60,7 +52,7 @@ def MoveRandomThingSafe(inputState: StateType, whereTo: str) -> StateType:
     '''
     chosen_tuple, index = PickRandomThingAt(inputState)
     # while Invalid or Already there
-    while IsInvalidLocation(chosen_tuple[1]) or (chosen_tuple[1] == whereTo):
+    while IsSpecialLocation(chosen_tuple[1]) or (chosen_tuple[1] == whereTo):
         chosen_tuple, index = PickRandomThingAt(inputState)
 
     return MoveItem(inputState, index, (chosen_tuple[0], whereTo))

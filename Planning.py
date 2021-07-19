@@ -6,7 +6,7 @@ import math
 
 import State
 from Operation import Operation
-from State import StateType, Operators, Known_Fudges
+from State import Disaster, Special_Locations, StateType, Operators, Known_Fudges
 
 
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
@@ -105,51 +105,15 @@ def Check_Operation(State, Operation : Operation):
 
     """
     #print(f"Operation: {Operator}, Args: {Args}")
-    Op = Operators[Operation.Operator]
-    Arguments = Op["Arguments"]
-    Substitutions = {}
-    Requires = Op["Requires"]
-
-    # Fulfil Requirements
-    if len(Arguments) != len(Operation.Args):
-        #print("Uh oh")
-        return False
-
     # Define Substitutions
-    # = {What to Substitute : To What} for each thing to substitute
-    Substitutions = {Arguments[index] : Operation.Args[index] for index in range(len(Arguments))}
-
-    def check_and_substitute(x):
-        if type(req) != tuple:
-            return check_and_substitute_value(req)
-        else:
-            return check_and_substitute_tuple(req)
-
-    def check_and_substitute_value(x):
-        # Return the Substitution if there is one, else return the original value
-        return Substitutions[x] if x in Substitutions else x
-    
-    def check_and_substitute_tuple(Tuple, out_Not = False):
-        outlist = [Substitutions[x] if x in Substitutions else x for x in Tuple]
-        Not = False
-        # Remove all modifier values ("Not")
-        for val in outlist:
-            if val == "Not":
-                Not = True
-                del outlist[outlist.index(val)]
-                
-        Tuple = tuple(outlist)
-        if len(Tuple) == 1:
-            Tuple = (Tuple[0])
-
-        # If I want to out Not, create a List, else just return the tuple
-        return Tuple if not out_Not else [Tuple, Not]
+    Substitutions = Operation.Substitutions
+    Requires = Operation.Requires
 
     # Find any Fudges
     for Type in Requires:
         for req in Requires[Type]:
             # Substitute any Known Values
-            req = check_and_substitute(req)
+            req = Operation.check_and_substitute(req)
 
             # Find any unknown values left over
             unknowns = [val in Known_Fudges for val in req]
@@ -161,7 +125,7 @@ def Check_Operation(State, Operation : Operation):
             if any(unknowns):
                 #print("Some Unknowns")
                 for x in req:
-                    x = check_and_substitute_value(x)
+                    x = Operation.check_and_substitute_value(x)
                     if x in Known_Fudges:
                         
                         #print(x)
@@ -182,7 +146,7 @@ def Check_Operation(State, Operation : Operation):
     # Check Requirements
     for require_type in Requires:
         for req in Requires[require_type]:
-            req = check_and_substitute(req)
+            req = Operation.check_and_substitute(req)
             if req not in State[require_type]:
                 #current_value = [val for val in State[require_type] if req[0] == val[0]]
                 #print(f"""Cannot Complete Check Requirement\n\tRequirement: {req}\n\tCurrent State: {current_value[:]}""")
@@ -190,19 +154,16 @@ def Check_Operation(State, Operation : Operation):
 
     return True
 
-def DoOperation(OriginalState : StateType, Operation : Operation, already_checked = False) -> StateType:
+def DoOperation(OriginalState : dict[str, dict], Operation : Operation, already_checked = False) -> StateType:
     """
     Apply an Operation to a Given State, optionally bypassing validity checks
     """
     #print(f"Operation: {Operator}")
+    State = copy.deepcopy(OriginalState)
+    # Define Substitutions
     Substitutions = Operation.Substitutions
     Requires = Operation.Requires
     Effect = Operation.Effect
-
-    State = copy.deepcopy(OriginalState)
-    # Define Substitutions
-    # = {What to Substitute : To What} for each thing to substitute
-
 
     # Find any Fudges
     for List in [Requires, Effect]:
@@ -210,13 +171,12 @@ def DoOperation(OriginalState : StateType, Operation : Operation, already_checke
             for req in List[Type]:
                 # Substitute any Known Values
                 req = Operation.check_and_substitute(req)
-
                 # Find any unknown values left over
                 unknowns = [val in Known_Fudges for val in req]
                 # If they're all unknown, I have no clue what it should be
                 if all(unknowns):
                     continue
-                # If some are unknown, Find them out
+                # If some are unknown, Guess that they're fudges
                 if any(unknowns):
                     for x in req:
                         x = Operation.check_and_substitute_value(x)
@@ -242,9 +202,11 @@ def DoOperation(OriginalState : StateType, Operation : Operation, already_checke
                     return OriginalState
 
     # Act Out the Operation
+    #print(f"Act out {Operator}")
     for action_type in Effect:
         for action in Effect[action_type]:
             thing, Not = Operation.check_and_substitute_tuple(action, True)
+            #print(action, thing, Not)
             compare = State[action_type]
             # If In But is Not
             if thing in compare:
@@ -263,13 +225,14 @@ def get_at(State, Thing = "Actor"):
         All the Things that are in the same location as Thing
     """
     var = [pair[1] for pair in State["at"] if Thing in pair]
-    if var == []: return ""
+    if var == []: return None
     else: return var[0]
 
+def get_at_notAt(State, Thing = "Actor"):
+    thing_pos = get_at(State, Thing);
+    return (thing_pos, [loc for loc in Known_Locations if (loc != thing_pos and loc not in Special_Locations)])
 
-(Known_Things, Known_Locations) = find_things(State.StartingState, State.OriginalGoal)
-
-def find_options(State) -> StateType:
+def find_options(State: StateType) -> StateType:
     """
     Find Options
 
@@ -283,18 +246,8 @@ def find_options(State) -> StateType:
 
     ## Assemble List of Possible Actions in this current state
     for operator in Operators:
-        #print("Checking", operator)
         args = Operators[operator]["Arguments"]
-        #print(args)
-
-        ## I can guess what things I can put into each Arg Spot
-        # X is the Actor's Position
-        actor_pos = get_at(State, "Actor")
-        # Y is not the Actor's Position
-        where_actor_is_not = [loc for loc in Known_Locations if (loc != actor_pos and loc != "Inventory")]
-        # Things
-        things = Known_Things
-
+        actor_pos, where_actor_is_not = get_at_notAt(State, "Actor")
 
         Guesses = []
         for index in range(len(args)):
@@ -308,7 +261,7 @@ def find_options(State) -> StateType:
                 Guesses[index] = where_actor_is_not
 
             if arg not in ["x","y"]:
-                Guesses[index] = list(things)
+                Guesses[index] = list(Known_Things)
             
             continue
 
@@ -328,7 +281,7 @@ def find_options(State) -> StateType:
         good_args = []
         # For the total length of arguments
         for index in range(math.prod(count)):
-            # Transfer Guesses from n × m arrays, to m × n arrays
+            # Transfer Guesses from n x m arrays, to m x n arrays
             out = []
             # For each index
             for jndex in range(len(complete_guesses)):
@@ -351,6 +304,79 @@ def find_options(State) -> StateType:
 
     return current_options
 
+def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
+    """
+    Find Disasters
+
+    State : dict
+        The current State
+    Returns : dict 
+        Keys: operators that you can do
+        Values: List - Values that you can pass to the operator
+    """
+    current_options = {}
+
+    Guesses = []
+    ## Assemble List of Possible Actions in this current state
+    for thing in Known_Things:
+        args = Disaster["Arguments"]
+        thing_pos, where_thing_is_not = get_at_notAt(State, thing)
+
+        
+        for index in range(len(args)):
+            arg = args[index]
+            Guesses.append(None)
+
+            if arg == "x":
+                Guesses[index] = thing_pos
+                
+            if arg == "y":
+                Guesses[index] = where_thing_is_not
+
+            if arg not in ["x","y"]:
+                Guesses[index] = list(Known_Things)
+            
+            continue
+
+        complete_guesses = [None] * len(Guesses)
+
+        # Get the Number of Guesses for each Index
+        count = [len(Guess) if type(Guess) == list else 1 for Guess in Guesses]
+        # Adjust each Guess Index to be equal in length
+        for index in range(len(count)):
+            # Remove it from the Number of Guesses
+            tmp = copy.deepcopy(count)
+            del tmp[index]
+            # Compute and Apply the amount to multiply to make all Indices the same length
+            value = list(Guesses[index]) if type(Guesses[index]) == list else [Guesses[index]]
+            complete_guesses[index] = value * math.prod(tmp)
+
+        good_args = []
+        # For the total length of arguments
+        for index in range(math.prod(count)):
+            # Transfer Guesses from n x m arrays, to m x n arrays
+            out = []
+            # For each index
+            for jndex in range(len(complete_guesses)):
+                out.append(complete_guesses[jndex][index])
+            good_args.append(out)
+
+        #print(f"{operator}\n{get_at(State,'Actor')}") 
+        #print(f"Good: {good_args}")
+        # Try each good arg
+        # valid_args = []
+        # for args in good_args:
+        #     if Check_Operation(State, Operation(operator, args)):
+        #         valid_args.append(args)
+
+        # #print(f"Args: {valid_args}")
+
+        # #print(f"{operator}:\n{Guesses}\n{complete_guesses}\n{good_args}\n{valid_args}")
+
+        # current_options[operator] = valid_args
+
+    return current_options
+
 def simple_score(State):
     opt = find_options(State)
     return len([thing for option in opt for thing in opt[option]])
@@ -362,9 +388,4 @@ def debug_text(State):
     print(f"Num Options {simple_score(State)}")
     #print("Score", distance_between(State, Saved_States["Goal"]))
 
-def find_valid_answers_for_disaster(State, Disaster) -> list[Operation]:
-
-
-
-
-    return list()
+(Known_Things, Known_Locations) = find_things(State.StartingState, State.OriginalGoal)

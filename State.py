@@ -1,12 +1,13 @@
 ####################################################
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Union
 
 
-DisasterType = Dict[str, Any]
 
-StateContents = List[Tuple[str,str]]
-OperatorType = Dict[str, (List[str] or Dict[str, StateContents])]
+StateContents = List[Tuple[str, str]]
 StateType = Dict[str, StateContents]
+Operator = Dict[str, Union[StateType, List]]
+Disaster = Dict[str, Union[StateType, List]]
+
 
 StartingState : StateType = {
 	"at" : [("Actor", "Home"), ("Scarecrow", "Field"), ("Tools", "Shed"), ("Seeds", "Shed")],
@@ -14,7 +15,7 @@ StartingState : StateType = {
 	"farmable" : ["Crops"]
 }
 
-Operators : OperatorType = {
+Operators : Dict[str, Operator] = {
 	"Go" : {
 	"Arguments" : ["x", "y"],
 	"Requires": {
@@ -68,11 +69,20 @@ Operators : OperatorType = {
 	}
 }
 
-Disasters: Dict[str, DisasterType] = {
+Disasters: Dict[str, Disaster] = {
 	"Move" : {
-		"Arguments" : ["thing", "location"],
+		"Arguments" : ["thing", "x", "y"],
+		"Infers" : ["x"],
 		"Effect" : {
-			"at" : [("thing", "whereWas", "Not"), ("thing", "location")]
+			"at" : [("thing", "x", "Not"), ("thing", "y")]
+		}
+	},
+	"Scarecrow Theft" :
+	{
+		"Arguments" : ["x"],
+		"Infers" : ["x"],
+		"Effect" : {
+			"at" : [("Scarecrow", "x", "Not"), ("Scarecrow", "Far Away")]
 		}
 	}
 }
@@ -88,7 +98,7 @@ OriginalGoal : StateType = {
 
 # Things that aren't arguments, but can be used to make Operations more generic
 Known_Fudges = ["x", "y", "c", "h"]
-
+Special_Locations = ["Inventory", "Far Away"]
 
 #########
 
@@ -97,3 +107,6 @@ def SortState(input: StateType) -> StateType:
 	for type in input:
 		input[type] = sorted(input[type])
 	return input
+
+def IsSpecialLocation(location: str) -> bool:
+    return location in Special_Locations
