@@ -4,9 +4,12 @@ import copy
 # Multiply Arrays
 import math
 
+import itertools
+import random
+
 import State
 from Operation import Operation
-from State import Disaster, Special_Locations, StateType, Operators, Known_Fudges
+from State import Disaster, IsSpecialLocation, Special_Locations, StateType, Operators, Known_Fudges
 
 
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
@@ -316,27 +319,38 @@ def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
     """
     current_options = {}
 
-    Guesses = []
+
+    ThingArgsList = list()
     ## Assemble List of Possible Actions in this current state
     for thing in Known_Things:
+
+        # Actor Disasters will be explicit
+        if thing == "Actor":
+            continue
+
         args = Disaster["Arguments"]
         thing_pos, where_thing_is_not = get_at_notAt(State, thing)
 
-        
+        if thing_pos == None:
+            continue
+
+        if IsSpecialLocation(thing_pos):
+            continue
+
+        Guesses = []
         for index in range(len(args)):
             arg = args[index]
-            Guesses.append(None)
 
             if arg == "x":
-                Guesses[index] = thing_pos
+                Guesses.append(thing_pos)
                 
             if arg == "y":
-                Guesses[index] = where_thing_is_not
+                Guesses.append(where_thing_is_not)
 
             if arg not in ["x","y"]:
-                Guesses[index] = list(Known_Things)
+                Guesses.append(thing)#list(Known_Things))
             
-            continue
+            continue #End For
 
         complete_guesses = [None] * len(Guesses)
 
@@ -361,13 +375,17 @@ def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
                 out.append(complete_guesses[jndex][index])
             good_args.append(out)
 
+
         #print(f"{operator}\n{get_at(State,'Actor')}") 
         #print(f"Good: {good_args}")
         # Try each good arg
         # valid_args = []
         # for args in good_args:
-        #     if Check_Operation(State, Operation(operator, args)):
+        #     if Check_Disaster(State, Operation(operator, args)):
         #         valid_args.append(args)
+
+        ThingArgsList.append(good_args)
+
 
         # #print(f"Args: {valid_args}")
 
@@ -375,7 +393,11 @@ def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
 
         # current_options[operator] = valid_args
 
-    return current_options
+    # Take one from each Thing List and make a new list of these lists
+    combinations = itertools.product(*ThingArgsList)
+    choice = random.choice(list(combinations))
+
+    return choice
 
 def simple_score(State):
     opt = find_options(State)

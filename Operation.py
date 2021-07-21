@@ -3,7 +3,7 @@ from typing import Dict, List
 from State import Operators
 
 
-class Operation:
+class Action:
     '''
         A Basic Operation. Stores the Operator Performed, and any Arguments given for it.\n
         Does not check if the Operation is valid in the current state.
@@ -61,3 +61,10 @@ class Operation:
     
     def __str__(self) -> str:
         return f"{self.Operator} {self.Arguments}"
+
+
+class Operation(Action):
+    pass
+
+class Disaster(Action):
+    pass

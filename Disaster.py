@@ -1,6 +1,7 @@
 
 
 # from Planning import find_disaster_options
+from Planning import find_disasters
 from State import Disasters, IsSpecialLocation, Special_Locations, StateContents, StateType
 import random
 
@@ -14,9 +15,9 @@ def DoDistaster(CurrentState : StateType) -> StateType:
     new_at.append(("Scarecrow", "Far Away"))
     CurrentState["at"] = new_at
 
-    # SelectedDisaster = Disasters["Move"]
+    SelectedDisaster = Disasters["Move"]
     # Find Valid Arguments
-    # find_disaster_options(CurrentState, SelectedDisaster)
+    find_disasters(CurrentState, SelectedDisaster)
 
 
     # CurrentState = MoveRandomThingSafe(CurrentState, "Home")
