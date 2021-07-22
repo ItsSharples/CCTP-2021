@@ -43,7 +43,8 @@ Operators : Dict[str, Operator] = {
         "at" : [("Actor", "x"), ("drop", "Inventory")]
         },
 	"Effect" : {
-		"at" : [("drop", "x"), ("drop", "Inventory", "Not")]
+		"at" : [("drop", "x"), ("drop", "Inventory", "Not")],
+		"have" : [("Actor", "drop", "Not")]
 	}
 	},
 # Farming Stuff
@@ -79,7 +80,7 @@ Disasters: Dict[str, Disaster] = {
 	},
 	"Scarecrow Theft" :
 	{
-		"Arguments" : ["x"],
+		"Arguments" : [],
 		"Infers" : ["x"],
 		"Effect" : {
 			"at" : [("Scarecrow", "x", "Not"), ("Scarecrow", "Far Away")]

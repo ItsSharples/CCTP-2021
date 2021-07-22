@@ -1,38 +1,48 @@
+from typing import Tuple
+import copy
+from Planner import Plan
 
-
-# from Planning import find_disaster_options
 from Planning import find_disasters
-from State import Disasters, IsSpecialLocation, Special_Locations, StateContents, StateType
+from State import IsSpecialLocation, StateType
+import State
 import random
+import Operation
 
-def DoDistaster(CurrentState : StateType) -> StateType:
+def DoDistaster(CurrentPlan : Plan) -> Plan:
 
-    at = CurrentState["at"]
-    new_at: StateContents = list()
-    for pair in at:
-        if pair[0] != "Scarecrow":
-            new_at.append(pair)
-    new_at.append(("Scarecrow", "Far Away"))
-    CurrentState["at"] = new_at
+    # at = CurrentState["at"]
+    # new_at: StateContents = list()
+    # for pair in at:
+    #     if pair[0] != "Scarecrow":
+    #         new_at.append(pair)
+    # new_at.append(("Scarecrow", "Far Away"))
+    # CurrentState["at"] = new_at
 
-    SelectedDisaster = Disasters["Move"]
+    CurrentState = CurrentPlan.CurrentState
+
+    DisasterName = "Scarecrow Theft"
+    SelectedDisaster = State.Disasters[DisasterName]
     # Find Valid Arguments
-    find_disasters(CurrentState, SelectedDisaster)
+    disaster_actions = find_disasters(CurrentState, SelectedDisaster)
 
+    DisasterPlan = copy.deepcopy(CurrentPlan)
+    for action in disaster_actions:
+        DisasterOf = Operation.DisasterOperation(DisasterName, action)
+        DisasterPlan = Plan(DisasterOf, DisasterPlan)
 
     # CurrentState = MoveRandomThingSafe(CurrentState, "Home")
-    return CurrentState
+    return DisasterPlan
 
 
 
-def PickRandomThingAt(inputState: StateType) -> 'tuple[tuple[str,str], int]':
+def PickRandomThingAt(inputState: StateType) -> Tuple[Tuple[str,str], int]:
     locations: list[tuple[str,str]] = inputState["at"];
     index = random.randint(0, len(locations) - 1)
     chosen_tuple = locations[index]
     return (chosen_tuple, index)
 
 
-def MoveItem(inputState: StateType, index: int, new_tuple: 'tuple[str, str]') -> StateType:
+def MoveItem(inputState: StateType, index: int, new_tuple: Tuple[str, str]) -> StateType:
     # Update the Arrays 
     inputState["at"][index] = new_tuple
     return inputState

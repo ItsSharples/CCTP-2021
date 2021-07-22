@@ -8,7 +8,7 @@ import itertools
 import random
 
 import State
-from Operation import Operation
+from Operation import Operation, DisasterOperation
 from State import Disaster, IsSpecialLocation, Special_Locations, StateType, Operators, Known_Fudges
 
 
@@ -170,6 +170,7 @@ def DoOperation(OriginalState : dict[str, dict], Operation : Operation, already_
 
     # Find any Fudges
     for List in [Requires, Effect]:
+        if List is None: continue
         for Type in List:
             for req in List[Type]:
                 # Substitute any Known Values
@@ -365,7 +366,7 @@ def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
             value = list(Guesses[index]) if type(Guesses[index]) == list else [Guesses[index]]
             complete_guesses[index] = value * math.prod(tmp)
 
-        good_args = []
+        good_args = list()
         # For the total length of arguments
         for index in range(math.prod(count)):
             # Transfer Guesses from n x m arrays, to m x n arrays
@@ -395,9 +396,16 @@ def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
 
     # Take one from each Thing List and make a new list of these lists
     combinations = itertools.product(*ThingArgsList)
+    # Make a choice
     choice = random.choice(list(combinations))
-
-    return choice
+    # Make sure there's only Unique actions
+    # Do it now, as it's the least expensive time to
+    unique_actions = list()
+    for action in choice:
+        if action not in unique_actions:
+            unique_actions.append(action)
+    # 
+    return unique_actions
 
 def simple_score(State):
     opt = find_options(State)

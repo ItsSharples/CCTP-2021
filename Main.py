@@ -1,6 +1,5 @@
 
 from Journal import Journal
-from Disaster import DoDistaster
 from Planner import Plan, Operation
 from Planning import *
 import State, Plans

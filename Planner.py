@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 
 from Planning import *
+from Operation import Action
 import State, sys
 
 
@@ -12,7 +13,7 @@ class Plan:
     worstSimpleScore = 10
     worstGoalDistance = 10
 
-    def __init__(self, First_Operation: Operation, parent: Plan):
+    def __init__(self, First_Operation: Action, parent: Plan):
 
         self.ThisOperation = First_Operation
 
@@ -20,7 +21,7 @@ class Plan:
             self.Parent = None
             self.Operations = [self.ThisOperation]
             self.CurrentState = State.StartingState
-            self.ChildOf = 0;
+            self.ParentCount = 0;
             self.DeadEnd = False;
 
             self.Options = find_options(self.CurrentState)
@@ -33,14 +34,18 @@ class Plan:
             return;
 
         self.Parent : Plan = parent
-        self.ChildOf = self.Parent.ChildOf + 1
-        self.Operations : list[Operation] = self.Parent.Operations + [self.ThisOperation];
+        self.ParentCount = self.Parent.ParentCount + 1
+        self.Operations : list[Action] = self.Parent.Operations + [self.ThisOperation];
 
-        self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation));
+        self.Type = self.ThisOperation.__class__.__name__
+        if self.Type == DisasterOperation.__name__:
+            self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation, True));
+        else:
+            self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation, False));
 
         self.UpdateState(self.CurrentState);
         
-        self.DeadEnd = (self.ChildOf >= Plan.maxPlanDepth) or ((self.ChildOf >= Plan.childrenBeforeEndCheck) and (self.SimpleScore >= Plan.worstSimpleScore) and (self.DistanceToGoal >= Plan.worstGoalDistance))
+        self.DeadEnd = (self.ParentCount >= Plan.maxPlanDepth) or ((self.ParentCount >= Plan.childrenBeforeEndCheck) and (self.SimpleScore >= Plan.worstSimpleScore) and (self.DistanceToGoal >= Plan.worstGoalDistance))
 
         # optimised = self.Optimise()
         # while self.StateHash != optimised.StateHash:
@@ -67,7 +72,6 @@ class Plan:
         # The idea being that less common Options should be tried first
         Operators = [x.Operator for x in self.Operations]
         self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
-
 
     def Add(self, operation: Operation):
         self.Operations.append(operation)
@@ -114,11 +118,11 @@ class Plan:
                     distance = current_distance
         
         ## Update the Plan with this removed from it.
-        (oldestPlan, jumpToPlan) = sorted(biggest_pair, key=lambda plan: plan.ChildOf)
+        (oldestPlan, jumpToPlan) = sorted(biggest_pair, key=lambda plan: plan.ParentCount)
         ## Reconstruct the plan, with three (or four) markers;
         ## Start -> oldestPlan | jumpToPlan -> thisPlan
         newPlan = copy.deepcopy(oldestPlan)
-        index = jumpToPlan.ChildOf + 1
+        index = jumpToPlan.ParentCount + 1
         operationsToDo = self.Operations[index:]
         completeOperations = newPlan.Operations + operationsToDo
         
@@ -135,17 +139,21 @@ class Plan:
 
     @property
     def NumSteps(self) -> int:
-        
         if self.Parent == None:
             return sys.maxsize;
         else:
             return self.Operations.__len__();
     
+    @property
+    def DisastersEncountered(self) -> int:
+        if self.Parent == None: return 0
+        return self.Parent.DisastersEncountered + int(self.Type == DisasterOperation.__name__)
+
     def AgeDistance(self, other: Plan) -> int:
-        return abs(self.ChildOf - other.ChildOf);
+        return abs(self.ParentCount - other.ParentCount);
 
     def GetNthStep(self, n: int) -> Plan:
         currPlan = self;
-        while currPlan.ChildOf > n:
+        while currPlan.ParentCount > (n + currPlan.DisastersEncountered):
             currPlan = currPlan.Parent
         return currPlan

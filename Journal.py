@@ -59,7 +59,8 @@ class Journal:
         return
 
     def DoDisaster(self):
-        DisasterState = DoDistaster(self.CurrentState)
-        self.CurrentState = DisasterState
-        self.CurrentPlan.UpdateState(self.CurrentState)
+        DisasterPlan = DoDistaster(self.CurrentPlan)
+        self.CurrentPlan = DisasterPlan;
+        # The plan's been messed up, there's no best plan anymore
+        self.BestPlan = Plan(Operation("Start"), None);
         return

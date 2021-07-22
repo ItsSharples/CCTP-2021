@@ -21,8 +21,8 @@ def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan
             if NewPlan.Completed:
                 NewPlan = NewPlan.Optimise();
                 if len(NewPlan) < len(BestPlan):
-                    print(f"FOUND GOAL AT For {NewPlan}")
-                    print(NewPlan.ChildOf);
+                    # print(f"FOUND GOAL AT For {NewPlan}")
+                    # print(NewPlan.ChildOf);
                     BestPlan = NewPlan
                 return BestPlan
 

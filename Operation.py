@@ -1,6 +1,6 @@
 
 from typing import Dict, List
-from State import Operators
+from State import Disaster, Operator, Disasters, Operators, StateType
 
 
 class Action:
@@ -8,20 +8,20 @@ class Action:
         A Basic Operation. Stores the Operator Performed, and any Arguments given for it.\n
         Does not check if the Operation is valid in the current state.
     '''
-    def __init__(this, Operator : str, Args : list = []):
-        this.Operator = Operator;
+    def __init__(this, ChosenActionSheet, OperatorName : str, Args : list = []):
+        this.Operator = OperatorName;
         this.Arguments = Args;
         this.Requires = None;
         this.Substitutions = None;
 
         # This is just a Null Operation
-        if Operator == "Start":
+        if OperatorName == "Start":
             return
         # A Disaster Operation
-        if Operator == "Disaster":
+        if OperatorName == "Disaster":
             return
 
-        this.OperatorSheet: Operator = Operators[Operator]
+        this.OperatorSheet: Operator = ChosenActionSheet[OperatorName]
         this.Arguments : list[str] = this.OperatorSheet["Arguments"]
 
         # Fulfil Requirements
@@ -29,9 +29,11 @@ class Action:
             raise ValueError(f"Args does not match Number of Arguments for this Operation (Needs {len(this.Arguments)}, Has {len(Args)}).")
 
         this.Substitutions : Dict[str, str] = {this.Arguments[index] : Args[index] for index in range(len(this.Arguments))}
-        this.Arguments = Args    
-        this.Requires = this.OperatorSheet["Requires"]
-        this.Effect = this.OperatorSheet["Effect"]
+        this.Arguments = Args
+
+        this.OperatorSheet.setdefault(None)
+        this.Requires: StateType = this.OperatorSheet.get("Requires")
+        this.Effect: StateType = this.OperatorSheet.get("Effect")
 
     def check_and_substitute(this, req: (tuple or str)):
         if type(req) != tuple:
@@ -64,7 +66,11 @@ class Action:
 
 
 class Operation(Action):
-    pass
+    def __init__(this, Operator : str, Args : list = []):
+        super().__init__(Operators, Operator, Args);
 
-class Disaster(Action):
-    pass
+
+class DisasterOperation(Action):
+    def __init__(this, Operator : str, Args : list = []):
+        super().__init__(Disasters, Operator, Args);
+
