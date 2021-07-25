@@ -13,9 +13,11 @@ class Action:
         this.Arguments = Args;
         this.Requires = None;
         this.Substitutions = None;
+        this.Format = "{}"
 
         # This is just a Null Operation
-        if OperatorName == "Start":
+        if OperatorName == "Start" or OperatorName == None:
+            this.Format = str()
             return
         # A Disaster Operation
         if OperatorName == "Disaster":
@@ -30,10 +32,13 @@ class Action:
 
         this.Substitutions : Dict[str, str] = {this.Arguments[index] : Args[index] for index in range(len(this.Arguments))}
         this.Arguments = Args
-
+        # Fetch the Values
         this.OperatorSheet.setdefault(None)
         this.Requires: StateType = this.OperatorSheet.get("Requires")
         this.Effect: StateType = this.OperatorSheet.get("Effect")
+        this.Format: str = this.OperatorSheet.get("Format")
+        if this.Format == None:
+            this.Format = "{}" * this.Arguments.__len__()
 
     def check_and_substitute(this, req: (tuple or str)):
         if type(req) != tuple:
@@ -62,7 +67,7 @@ class Action:
         return this.Substitutions[x] if x in this.Substitutions else x
     
     def __str__(self) -> str:
-        return f"{self.Operator} {self.Arguments}"
+        return f"{self.Operator} {self.Format.format(*self.Arguments)}"
 
 
 class Operation(Action):

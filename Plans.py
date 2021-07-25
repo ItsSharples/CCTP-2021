@@ -1,14 +1,16 @@
-from Planner import Plan
+from Planner import NullPlan, Plan
 from Operation import Operation
+import random 
 
-def oldPlan(CurrPlan : Plan, BestPlan : Plan = None, last_operator = "") -> Plan:
+def oldPlan(CurrPlan : Plan, BestPlan : Plan = NullPlan, last_operator = "") -> Plan:
     if CurrPlan.DeadEnd:
         return BestPlan
     if BestPlan.Completed:
         return BestPlan.Optimise()
 
     #options = find_options(CurrPlan.CurrentState)
-    for operator in CurrPlan.SortedOperators:
+    operators = random.sample(CurrPlan.SortedOperators, k=len(CurrPlan.SortedOperators))
+    for operator in operators:
         if operator == last_operator:
             continue
         for args in CurrPlan.Options[operator]:

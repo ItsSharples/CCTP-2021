@@ -1,6 +1,7 @@
 from __future__ import annotations
 # Copy Objects
 import copy
+from typing import Tuple, overload
 
 from Planning import *
 from Operation import Action
@@ -13,24 +14,38 @@ class Plan:
     worstSimpleScore = 10
     worstGoalDistance = 10
 
-    def __init__(self, First_Operation: Action, parent: Plan):
 
+    def MakeEmptyPlan(CurrentState: StateType) -> Plan:
+        self = Plan(Operation(None), None)
+        self.Parent = None
+        self.Operations = []
+        self.CurrentState = CurrentState
+        self.ParentCount = 0;
+        self.DeadEnd = False;
+
+        self.Options = find_options(self.CurrentState)
+        Operators = [x.Operator for x in self.Operations]
+        self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
+        self.StateHash = hash(str(self.CurrentState))
+
+        self.Goal = build_goal(self.CurrentState, State.OriginalGoal);
+        self.Completed = False;
+        return self;
+
+    def __init__(self, First_Operation: Action, parent: Plan, CurrentState: StateType = None):
+        if First_Operation.Operator == None:
+            return
+        
         self.ThisOperation = First_Operation
 
         if self.ThisOperation.Operator == "Start":
             self.Parent = None
             self.Operations = [self.ThisOperation]
-            self.CurrentState = State.StartingState
+            self.CurrentState = State.StartingState if CurrentState == None else CurrentState
             self.ParentCount = 0;
             self.DeadEnd = False;
 
-            self.Options = find_options(self.CurrentState)
-            Operators = [x.Operator for x in self.Operations]
-            self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
-            self.StateHash = hash(str(self.CurrentState))
-
-            self.Goal = build_goal(self.CurrentState, State.OriginalGoal);
-            self.Completed = False;
+            self.UpdateState(self.CurrentState)
             return;
 
         self.Parent : Plan = parent
@@ -38,10 +53,21 @@ class Plan:
         self.Operations : list[Action] = self.Parent.Operations + [self.ThisOperation];
 
         self.Type = self.ThisOperation.__class__.__name__
-        if self.Type == DisasterOperation.__name__:
-            self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation, True));
+
+        if CurrentState == None:
+            if self.Type == DisasterOperation.__name__:
+                self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation, True));
+            else:
+                self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation, False));
+
+                # The Operation Failed, rip
+                if self.CurrentState == self.Parent.CurrentState:
+                    self.DeadEnd = True
+                    self = None
+                    return
+
         else:
-            self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation, False));
+            self.CurrentState = CurrentState
 
         self.UpdateState(self.CurrentState);
         
@@ -132,7 +158,9 @@ class Plan:
         return newPlan.Optimise()
 
     def __str__(self) -> str:
-        return " ".join([str(op) for op in self.Operations])
+        return ", ".join([str(op) for op in self.Operations])
+    def __repr__(self) -> str:
+        return self.__str__()
 
     def __len__(self) -> int:
         return self.NumSteps
@@ -157,3 +185,46 @@ class Plan:
         while currPlan.ParentCount > (n + currPlan.DisastersEncountered):
             currPlan = currPlan.Parent
         return currPlan
+    
+    def NthStepReverse(self, n: int, split: bool):
+        nthPlan = self.GetNthStep(n)
+        newOpList = self.Operations[len(nthPlan.Operations):]
+        # Construct a new Plan from here
+        newPlan = Plan.MakeEmptyPlan(CurrentState = nthPlan.CurrentState)
+        for op in newOpList:
+            newPlan = Plan(op, newPlan)
+
+        if newOpList.__len__() == 0:
+            newPlan = None
+        
+        if split:
+            return (nthPlan, newPlan)
+        else:
+            return newPlan
+
+    
+    def GetNthStepReverse(self, n: int) -> Plan:
+        return self.NthStepReverse(n, False)
+
+    def SplitByNthStep(self, n: int) -> Tuple[Plan, Plan]:
+        return self.NthStepReverse(n, True)
+
+    def AttachToPlan(self, newPlan: Plan):
+        operations = self.Operations
+        for operation in operations:
+            tmpNewPlan = Plan(operation, newPlan)
+            if tmpNewPlan.DeadEnd:
+                break
+            
+            newPlan = tmpNewPlan
+            if newPlan.Completed:
+                break
+        return newPlan
+
+    def Append(self, Operation: Operation):
+        return Plan(Operation, self)
+        
+
+    
+
+NullPlan = Plan(Operation("Start"), None)

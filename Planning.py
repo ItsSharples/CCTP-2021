@@ -405,7 +405,7 @@ def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
         if action not in unique_actions:
             unique_actions.append(action)
     # 
-    return unique_actions
+    return random.choice(unique_actions)
 
 def simple_score(State):
     opt = find_options(State)

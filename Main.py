@@ -1,8 +1,7 @@
 
 from Journal import Journal
-from Planner import Plan, Operation
 from Planning import *
-import State, Plans
+import State
 
 def main():
     StartingState = State.StartingState
@@ -14,11 +13,9 @@ def main():
 
 
     print(find_things(StartingState, OriginalGoal))
-    StartPlan = Plan(Operation("Start"), None)
 
-    print("Actor is currently at:", get_at(StartingState, "Actor"))
+    # print("Actor is currently at:", get_at(StartingState, "Actor"))
 
-    options = find_options(StartingState)
     print("--- Start State ---")
     debug_text(StartingState)
     print("------Options------")
@@ -32,8 +29,8 @@ def main():
         currentJournal.DoDay();
         currentJournal.DoDisaster();
 
-    print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.CurrentPlan.NumSteps} Steps) to complete the Task")
-
+    print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.StepsTaken} Steps) to complete the Task")
+    print([day.__repr__() for day in currentJournal.Days])
     # BestPlan = Plans.oldPlan(StartPlan, StartPlan)
     # print("Len", BestPlan.Operations.__len__())
     # print(BestPlan.CurrentState)

@@ -20,10 +20,10 @@ def DoDistaster(CurrentPlan : Plan) -> Plan:
 
     CurrentState = CurrentPlan.CurrentState
 
-    DisasterName = "Scarecrow Theft"
+    DisasterName = "Move"
     SelectedDisaster = State.Disasters[DisasterName]
     # Find Valid Arguments
-    disaster_actions = find_disasters(CurrentState, SelectedDisaster)
+    disaster_actions = [find_disasters(CurrentState, SelectedDisaster)]
 
     DisasterPlan = copy.deepcopy(CurrentPlan)
     for action in disaster_actions:

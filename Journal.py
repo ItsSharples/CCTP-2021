@@ -1,8 +1,8 @@
 
 
 from Disaster import DoDistaster, MoveRandomThing
-from Planner import Plan
-from Operation import Operation
+from Planner import NullPlan, Plan
+from Operation import Action, Operation
 
 from copy import deepcopy
 from Planning import build_state, build_goal
@@ -18,14 +18,15 @@ class Journal:
         self.BuiltGoal = build_goal(self.StartingState, GoalState)
 
         self.CurrentState = deepcopy(self.StartingState)
-        self.CurrentPlan =  CurrentPlan if CurrentPlan != None else Plan(Operation("Start"), None);
+        self.CurrentPlan =  CurrentPlan if CurrentPlan != None else NullPlan;
         self.BestPlan = deepcopy(self.CurrentPlan)
 
-        self.StepsPerDay = 4
+        self.Days : list[Plan] = list();
+
+        self.StepsPerDay = 6
         self.Day = 1
 
     def SetStateToPlan(self, thisPlan : Plan):
-        
         self.CurrentPlan = thisPlan;
         self.CurrentState = self.CurrentPlan.CurrentState;
 
@@ -39,7 +40,7 @@ class Journal:
 
     @property
     def StepsTaken(self) -> int:
-        return self.CurrentPlan.Steps;
+        return sum([day.NumSteps for day in self.Days])
 
     @property
     def IsJournalComplete(self) -> bool:
@@ -47,20 +48,28 @@ class Journal:
 
     def DoDay(self):
         # Maybe Do the Planning In the background before needing it?
-        self.BestPlan = Plans.oldPlan(self.CurrentPlan, self.BestPlan)
+        self.BestPlan = Plans.oldPlan(self.CurrentPlan)
 
-        furthestAbleToGo = self.BestPlan.GetNthStep(self.StepsSoFar)
-        self.SetStateToPlan(furthestAbleToGo)
+        furthestAbleToGo, newBest = self.BestPlan.SplitByNthStep(self.StepsPerDay)
+        TodaysEndPlan = Plan(Operation("Start", f"Day {self.Day}"), None, furthestAbleToGo.CurrentState)
+
+        self.Days.append(furthestAbleToGo)
+        self.SetStateToPlan(TodaysEndPlan)
+        self.BestPlan = newBest
 
         print("Current Plan");
         print(furthestAbleToGo)
+        
         self.Day += 1
 
         return
 
     def DoDisaster(self):
+        if self.IsJournalComplete:
+            return
         DisasterPlan = DoDistaster(self.CurrentPlan)
-        self.CurrentPlan = DisasterPlan;
-        # The plan's been messed up, there's no best plan anymore
-        self.BestPlan = Plan(Operation("Start"), None);
+        self.SetStateToPlan(DisasterPlan)
+        # The plan's been messed up, there's no best plan anymore,
+        # but here's a corrupted version for the planner to base itself on
+        self.BestPlan = self.BestPlan.AttachToPlan(DisasterPlan)
         return

@@ -23,7 +23,8 @@ Operators : Dict[str, Operator] = {
 	},
 	"Effect" : {
 		"at" : [("Actor", "y"), ("Actor", "x", "Not")]
-	}
+	},
+	"Format" : "from {} to {}"
 	},
 # General Interaction
 	"Grasp" : {
@@ -76,7 +77,8 @@ Disasters: Dict[str, Disaster] = {
 		"Infers" : ["x"],
 		"Effect" : {
 			"at" : [("thing", "x", "Not"), ("thing", "y")]
-		}
+		},
+		"Format" : "{} from {} to {}"
 	},
 	"Scarecrow Theft" :
 	{
