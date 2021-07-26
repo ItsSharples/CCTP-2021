@@ -1,5 +1,6 @@
 
 
+import copy
 from Disaster import DoDistaster, MoveRandomThing
 from Planner import NullPlan, Plan
 from Operation import Operation, Action
@@ -46,11 +47,23 @@ class Journal:
     def IsJournalComplete(self) -> bool:
         return self.CurrentPlan.Completed;
 
+    @property
+    def CompletePlan(self) -> Plan:
+        # Get all Operations that aren't Start, these happen at the start of every day
+        operations = [operation for Day in self.Days for operation in Day.Operations if operation.Operator != "Start"]
+        print([repr(operation) for operation in operations])
+        completePlan = Plan.CreateFromOperations(operations, self.StartingState)
+
+        return completePlan
+        
+
+
     def DoDay(self):
         # Maybe Do the Planning In the background before needing it?
         self.BestPlan = Plans.oldPlan(self.CurrentPlan)
 
         furthestAbleToGo, newBest = self.BestPlan.SplitByNthStep(self.StepsPerDay)
+        # TodaysEndPlan = Plan.MakeEmptyPlan(furthestAbleToGo.CurrentState);
         TodaysEndPlan = Plan(Action("Start", f"Day {self.Day}"), None, furthestAbleToGo.CurrentState)
 
         self.Days.append(furthestAbleToGo)

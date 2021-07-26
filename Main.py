@@ -31,6 +31,7 @@ def main():
 
     print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.StepsTaken} Steps) to complete the Task")
     print([day.__repr__() for day in currentJournal.Days])
+    print(currentJournal.CompletePlan)
     # BestPlan = Plans.oldPlan(StartPlan, StartPlan)
     # print("Len", BestPlan.Operations.__len__())
     # print(BestPlan.CurrentState)

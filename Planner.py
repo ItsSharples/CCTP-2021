@@ -1,7 +1,7 @@
 from __future__ import annotations
 # Copy Objects
 import copy
-from typing import Tuple, overload
+from typing import List, Tuple, overload
 
 from Planning import *
 from Operation import Operation
@@ -23,13 +23,15 @@ class Plan:
         self.ParentCount = 0;
         self.DeadEnd = False;
 
-        self.Options = find_options(self.CurrentState)
-        Operators = [x.Operator for x in self.Operations]
-        self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
-        self.StateHash = hash(str(self.CurrentState))
+        self.UpdateState(CurrentState)
 
-        self.Goal = build_goal(self.CurrentState, State.OriginalGoal);
-        self.Completed = False;
+        # self.Options = find_options(self.CurrentState)
+        # Operators = [x.Operator for x in self.Operations]
+        # self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
+        # self.StateHash = hash(str(self.CurrentState))
+
+        # self.Goal = build_goal(self.CurrentState, State.OriginalGoal);
+        # self.Completed = False;
         return self;
 
     def __init__(self, First_Operation: Operation, parent: Plan, CurrentState: StateType = None):
@@ -63,6 +65,7 @@ class Plan:
                 # The Operation Failed, rip
                 if self.CurrentState == self.Parent.CurrentState:
                     self.DeadEnd = True
+                    self.UpdateState(self.CurrentState)
                     self = None
                     return
 
@@ -223,6 +226,13 @@ class Plan:
 
     def Append(self, Operation: Action):
         return Plan(Operation, self)
+
+    def CreateFromOperations(Operations: List[Action], OriginalState: StateType):
+        plan = Plan(Action("Start"), None, OriginalState)
+        for operation in Operations:
+            plan = Plan(operation, plan)
+        return plan
+
         
 
     
