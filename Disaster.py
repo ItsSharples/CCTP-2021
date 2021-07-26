@@ -27,7 +27,7 @@ def DoDistaster(CurrentPlan : Plan) -> Plan:
 
     DisasterPlan = copy.deepcopy(CurrentPlan)
     for action in disaster_actions:
-        DisasterOf = Operation.DisasterOperation(DisasterName, action)
+        DisasterOf = Operation.Event(DisasterName, action)
         DisasterPlan = Plan(DisasterOf, DisasterPlan)
 
     # CurrentState = MoveRandomThingSafe(CurrentState, "Home")

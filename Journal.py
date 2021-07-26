@@ -2,7 +2,7 @@
 
 from Disaster import DoDistaster, MoveRandomThing
 from Planner import NullPlan, Plan
-from Operation import Action, Operation
+from Operation import Operation, Action
 
 from copy import deepcopy
 from Planning import build_state, build_goal
@@ -51,7 +51,7 @@ class Journal:
         self.BestPlan = Plans.oldPlan(self.CurrentPlan)
 
         furthestAbleToGo, newBest = self.BestPlan.SplitByNthStep(self.StepsPerDay)
-        TodaysEndPlan = Plan(Operation("Start", f"Day {self.Day}"), None, furthestAbleToGo.CurrentState)
+        TodaysEndPlan = Plan(Action("Start", f"Day {self.Day}"), None, furthestAbleToGo.CurrentState)
 
         self.Days.append(furthestAbleToGo)
         self.SetStateToPlan(TodaysEndPlan)

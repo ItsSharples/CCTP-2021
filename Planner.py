@@ -4,7 +4,7 @@ import copy
 from typing import Tuple, overload
 
 from Planning import *
-from Operation import Action
+from Operation import Operation
 import State, sys
 
 
@@ -16,7 +16,7 @@ class Plan:
 
 
     def MakeEmptyPlan(CurrentState: StateType) -> Plan:
-        self = Plan(Operation(None), None)
+        self = Plan(Action(None), None)
         self.Parent = None
         self.Operations = []
         self.CurrentState = CurrentState
@@ -32,7 +32,7 @@ class Plan:
         self.Completed = False;
         return self;
 
-    def __init__(self, First_Operation: Action, parent: Plan, CurrentState: StateType = None):
+    def __init__(self, First_Operation: Operation, parent: Plan, CurrentState: StateType = None):
         if First_Operation.Operator == None:
             return
         
@@ -50,12 +50,12 @@ class Plan:
 
         self.Parent : Plan = parent
         self.ParentCount = self.Parent.ParentCount + 1
-        self.Operations : list[Action] = self.Parent.Operations + [self.ThisOperation];
+        self.Operations : list[Operation] = self.Parent.Operations + [self.ThisOperation];
 
         self.Type = self.ThisOperation.__class__.__name__
 
         if CurrentState == None:
-            if self.Type == DisasterOperation.__name__:
+            if self.Type == Event.__name__:
                 self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation, True));
             else:
                 self.CurrentState = State.SortState(DoOperation(self.Parent.CurrentState, self.ThisOperation, False));
@@ -99,7 +99,7 @@ class Plan:
         Operators = [x.Operator for x in self.Operations]
         self.SortedOperators = sorted(self.Options, key=Operators.count, reverse=True)
 
-    def Add(self, operation: Operation):
+    def Add(self, operation: Action):
         self.Operations.append(operation)
         return self
 
@@ -175,7 +175,7 @@ class Plan:
     @property
     def DisastersEncountered(self) -> int:
         if self.Parent == None: return 0
-        return self.Parent.DisastersEncountered + int(self.Type == DisasterOperation.__name__)
+        return self.Parent.DisastersEncountered + int(self.Type == Event.__name__)
 
     def AgeDistance(self, other: Plan) -> int:
         return abs(self.ParentCount - other.ParentCount);
@@ -221,10 +221,10 @@ class Plan:
                 break
         return newPlan
 
-    def Append(self, Operation: Operation):
+    def Append(self, Operation: Action):
         return Plan(Operation, self)
         
 
     
 
-NullPlan = Plan(Operation("Start"), None)
+NullPlan = Plan(Action("Start"), None)

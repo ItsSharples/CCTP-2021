@@ -1,5 +1,5 @@
 from Planner import NullPlan, Plan
-from Operation import Operation
+from Operation import Action
 import random 
 
 def oldPlan(CurrPlan : Plan, BestPlan : Plan = NullPlan, last_operator = "") -> Plan:
@@ -14,7 +14,7 @@ def oldPlan(CurrPlan : Plan, BestPlan : Plan = NullPlan, last_operator = "") -> 
         if operator == last_operator:
             continue
         for args in CurrPlan.Options[operator]:
-            op = Operation(operator, args)
+            op = Action(operator, args)
             NewPlan = Plan(op, CurrPlan)
 
             if NewPlan.DeadEnd:

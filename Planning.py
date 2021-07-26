@@ -8,7 +8,7 @@ import itertools
 import random
 
 import State
-from Operation import Operation, DisasterOperation
+from Operation import Action, Event
 from State import Disaster, IsSpecialLocation, Special_Locations, StateType, Operators, Known_Fudges
 
 
@@ -102,7 +102,7 @@ def check_goal(State : StateType, Goal : StateType) -> bool:
     ## If there are no false things, it must be true
     return True
 ## TODO, Join Check and Do Together
-def Check_Operation(State, Operation : Operation):
+def Check_Operation(State, Operation : Action):
     """
     Check if a certain Operation is Valid on the given State
 
@@ -157,7 +157,7 @@ def Check_Operation(State, Operation : Operation):
 
     return True
 
-def DoOperation(OriginalState : dict[str, dict], Operation : Operation, already_checked = False) -> StateType:
+def DoOperation(OriginalState : dict[str, dict], Operation : Action, already_checked = False) -> StateType:
     """
     Apply an Operation to a Given State, optionally bypassing validity checks
     """
@@ -297,7 +297,7 @@ def find_options(State: StateType) -> StateType:
         # Try each good arg
         valid_args = []
         for args in good_args:
-            if Check_Operation(State, Operation(operator, args)):
+            if Check_Operation(State, Action(operator, args)):
                 valid_args.append(args)
 
         #print(f"Args: {valid_args}")

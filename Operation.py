@@ -3,7 +3,7 @@ from typing import Dict, List
 from State import Disaster, Operator, Disasters, Operators, StateType
 
 
-class Action:
+class Operation:
     '''
         A Basic Operation. Stores the Operator Performed, and any Arguments given for it.\n
         Does not check if the Operation is valid in the current state.
@@ -70,12 +70,12 @@ class Action:
         return f"{self.Operator} {self.Format.format(*self.Arguments)}"
 
 
-class Operation(Action):
+class Action(Operation):
     def __init__(this, Operator : str, Args : list = []):
         super().__init__(Operators, Operator, Args);
 
 
-class DisasterOperation(Action):
+class Event(Operation):
     def __init__(this, Operator : str, Args : list = []):
         super().__init__(Disasters, Operator, Args);
 
