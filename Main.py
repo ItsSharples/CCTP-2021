@@ -27,10 +27,11 @@ def main():
     print("-----PLANNING------")
     while not currentJournal.IsJournalComplete:
         currentJournal.DoDay();
-        currentJournal.DoDisaster();
+        currentJournal.DoEvents();
 
-    print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.StepsTaken} Steps) to complete the Task")
-    print([day.__repr__() for day in currentJournal.Days])
+    print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.NumSteps}: {currentJournal.NumActionsTaken} Steps [{currentJournal.EventsEncountered} Events]) to complete the Task")
+    print(f"Expects ({currentJournal.ExpectedCount})")
+    # print([day.__repr__() for day in currentJournal.Days])
     print(currentJournal.CompletePlan)
     # BestPlan = Plans.oldPlan(StartPlan, StartPlan)
     # print("Len", BestPlan.Operations.__len__())

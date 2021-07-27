@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Tuple, Union
 StateContents = List[Tuple[str, str]]
 StateType = Dict[str, StateContents]
 Operator = Dict[str, Union[StateType, List]]
-Disaster = Dict[str, Union[StateType, List]]
+EventType = Dict[str, Union[StateType, List]]
 
 
 StartingState : StateType = {
@@ -71,7 +71,7 @@ Operators : Dict[str, Operator] = {
 	}
 }
 
-Disasters: Dict[str, Disaster] = {
+Events: Dict[str, EventType] = {
 	"Move" : {
 		"Arguments" : ["thing", "x", "y"],
 		"Infers" : ["x"],

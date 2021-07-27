@@ -1,14 +1,14 @@
-from typing import Tuple
+from typing import List, Tuple
 import copy
 from Planner import Plan
 
-from Planning import find_disasters
+from Planning import find_events
 from State import IsSpecialLocation, StateType
 import State
 import random
 import Operation
 
-def DoDistaster(CurrentPlan : Plan) -> Plan:
+def PlanEvents(CurrentPlan : Plan) -> Tuple[str, List[Operation.Event]]:
 
     # at = CurrentState["at"]
     # new_at: StateContents = list()
@@ -21,17 +21,10 @@ def DoDistaster(CurrentPlan : Plan) -> Plan:
     CurrentState = CurrentPlan.CurrentState
 
     DisasterName = "Move"
-    SelectedDisaster = State.Disasters[DisasterName]
+    SelectedDisaster = State.Events[DisasterName]
     # Find Valid Arguments
-    disaster_actions = [find_disasters(CurrentState, SelectedDisaster)]
-
-    DisasterPlan = copy.deepcopy(CurrentPlan)
-    for action in disaster_actions:
-        DisasterOf = Operation.Event(DisasterName, action)
-        DisasterPlan = Plan(DisasterOf, DisasterPlan)
-
-    # CurrentState = MoveRandomThingSafe(CurrentState, "Home")
-    return DisasterPlan
+    DisasterActions = [find_events(CurrentState, SelectedDisaster)]
+    return (DisasterName, DisasterActions)
 
 
 

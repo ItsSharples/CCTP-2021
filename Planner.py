@@ -1,7 +1,7 @@
 from __future__ import annotations
 # Copy Objects
 import copy
-from typing import List, Tuple, overload
+from typing import List, Tuple
 
 from Planning import *
 from Operation import Operation
@@ -166,26 +166,32 @@ class Plan:
         return self.__str__()
 
     def __len__(self) -> int:
-        return self.NumSteps
+        return self.TotalOperations
 
     @property
-    def NumSteps(self) -> int:
+    def TotalOperations(self) -> int:
         if self.Parent == None:
             return sys.maxsize;
         else:
-            return self.Operations.__len__();
+            return self.ActionsTaken + self.EventsEncountered;
+
+    @property
+    def ActionsTaken(self) -> int:
+        if self.Parent == None: return 0
+        return self.Parent.ActionsTaken + int(self.Type == Action.__name__)
+       
     
     @property
-    def DisastersEncountered(self) -> int:
+    def EventsEncountered(self) -> int:
         if self.Parent == None: return 0
-        return self.Parent.DisastersEncountered + int(self.Type == Event.__name__)
+        return self.Parent.EventsEncountered + int(self.Type == Event.__name__)
 
     def AgeDistance(self, other: Plan) -> int:
         return abs(self.ParentCount - other.ParentCount);
 
     def GetNthStep(self, n: int) -> Plan:
         currPlan = self;
-        while currPlan.ParentCount > (n + currPlan.DisastersEncountered):
+        while currPlan.ParentCount > (n + currPlan.EventsEncountered):
             currPlan = currPlan.Parent
         return currPlan
     

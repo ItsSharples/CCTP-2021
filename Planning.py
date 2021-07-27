@@ -9,7 +9,7 @@ import random
 
 import State
 from Operation import Action, Event
-from State import Disaster, IsSpecialLocation, Special_Locations, StateType, Operators, Known_Fudges
+from State import EventType, IsSpecialLocation, Special_Locations, StateType, Operators, Known_Fudges
 
 
 # x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
@@ -308,9 +308,9 @@ def find_options(State: StateType) -> StateType:
 
     return current_options
 
-def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
+def find_events(State: StateType, Event : EventType) -> StateType:
     """
-    Find Disasters
+    Find Events
 
     State : dict
         The current State
@@ -325,11 +325,11 @@ def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
     ## Assemble List of Possible Actions in this current state
     for thing in Known_Things:
 
-        # Actor Disasters will be explicit
+        # Actor Events will be explicit
         if thing == "Actor":
             continue
 
-        args = Disaster["Arguments"]
+        args = Event["Arguments"]
         thing_pos, where_thing_is_not = get_at_notAt(State, thing)
 
         if thing_pos == None:
@@ -375,15 +375,6 @@ def find_disasters(State: StateType, Disaster : Disaster) -> StateType:
             for jndex in range(len(complete_guesses)):
                 out.append(complete_guesses[jndex][index])
             good_args.append(out)
-
-
-        #print(f"{operator}\n{get_at(State,'Actor')}") 
-        #print(f"Good: {good_args}")
-        # Try each good arg
-        # valid_args = []
-        # for args in good_args:
-        #     if Check_Disaster(State, Operation(operator, args)):
-        #         valid_args.append(args)
 
         ThingArgsList.append(good_args)
 

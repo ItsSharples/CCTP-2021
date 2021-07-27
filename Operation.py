@@ -1,6 +1,6 @@
 
 from typing import Dict, List
-from State import Disasters, Operators, StateType
+from State import Events, Operators, StateType
 
 
 class Operation:
@@ -19,9 +19,7 @@ class Operation:
         if OperatorName == "Start" or OperatorName == None:
             this.Format = str()
             return
-        # A Disaster Operation
-        if OperatorName == "Disaster":
-            return
+        
 
         this.OperatorSheet = ChosenActionSheet[OperatorName]
         this.Arguments : list[str] = this.OperatorSheet["Arguments"]
@@ -67,6 +65,8 @@ class Operation:
         return this.Substitutions[x] if x in this.Substitutions else x
     
     def __str__(self) -> str:
+        if self.Format == "":
+            return self.Operator
         return f"{self.Operator} {self.Format.format(*self.Arguments)}"
     
     def __repr__(self) -> str:
@@ -80,5 +80,5 @@ class Action(Operation):
 
 class Event(Operation):
     def __init__(this, Operator : str, Args : list = []):
-        super().__init__(Disasters, Operator, Args);
+        super().__init__(Events, Operator, Args);
 
