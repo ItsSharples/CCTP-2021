@@ -4,17 +4,12 @@ from Planning import *
 import State
 
 def main():
-    StartingState = State.StartingState
+    StartingState = build_state(State.StartingState)
     OriginalGoal = State.OriginalGoal
 
-    
-    StartingState = build_state(StartingState)
-    BuiltGoal = build_goal(StartingState, OriginalGoal)
-
+    # BuiltGoal = build_goal(StartingState, OriginalGoal)
 
     print(find_things(StartingState, OriginalGoal))
-
-    # print("Actor is currently at:", get_at(StartingState, "Actor"))
 
     print("--- Start State ---")
     debug_text(StartingState)
@@ -22,8 +17,6 @@ def main():
 
     currentJournal = Journal(StartingState, OriginalGoal);
 
-
-    #print(StartingState)
     print("-----PLANNING------")
     while not currentJournal.IsJournalComplete:
         currentJournal.DoDay();
@@ -31,25 +24,9 @@ def main():
 
     print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.NumSteps}: {currentJournal.NumActionsTaken} Steps [{currentJournal.EventsEncountered} Events]) to complete the Task")
     print(f"Expects ({currentJournal.ExpectedCount})")
-    # print([day.__repr__() for day in currentJournal.Days])
+    print([day.__repr__() for day in currentJournal.Days])
     print(currentJournal.CompletePlan)
-    # BestPlan = Plans.oldPlan(StartPlan, StartPlan)
-    # print("Len", BestPlan.Operations.__len__())
-    # print(BestPlan.CurrentState)
-    # print(BestPlan)
-    # plan = BestPlan.GetNthStep(4)
-    # plan.CurrentState = DoDistaster(plan.CurrentState)
 
-    # BestPlan = Plans.oldPlan(plan, StartPlan)
-    # print("Len", BestPlan.Operations.__len__())
-    # print(BestPlan.CurrentState)
-    # print(BestPlan)
-    # plan = BestPlan.GetNthStep(4)
-    # newState = DoDistaster(plan.CurrentState)
-    # print(OriginalGoal)
-    # print(BestPlan.Goal)
-    #print(Saved_States)
-    #print(Saved_States[best_plan])
     print("----End Options----")
     #print(Known_Locations)
     print("End Search")
