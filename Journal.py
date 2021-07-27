@@ -15,8 +15,6 @@ import Plans
 
 class Journal:
     def __init__(self, BaseState: StateType, GoalState: StateType, CurrentPlan : Plan = None):
-        self.a = 1
-
         self.StartingState = build_state(BaseState)
         self.BuiltGoal = build_goal(self.StartingState, GoalState)
 
@@ -74,7 +72,6 @@ class Journal:
             return self.__CompletePlan
         # Get all Operations that aren't Start, these happen at the start of every day
         operations = [operation for Day in self.Days for operation in Day[0] if operation.Operator != "Start"]
-        # print([repr(operation) for operation in operations])
         self.__CompletePlan = Plan.CreateFromOperations(operations, self.StartingState)
         return self.__CompletePlan
 
@@ -87,6 +84,10 @@ class Journal:
         # Maybe Do the Planning In the background before needing it?
         self.BestPlan = Plans.oldPlan(self.CurrentPlan)
 
+        plan = Plan.MakeEmptyPlan(self.CurrentState)
+        for operation in self.BestPlan.Operations:
+            plan = Plan(operation, plan)
+
         furthestAbleToGo, newBest = self.BestPlan.SplitByNthStep(self.StepsPerDay)
         # TodaysEndPlan = Plan.MakeEmptyPlan(furthestAbleToGo.CurrentState);
         TodaysEndPlan = Plan(Action("Start", f"Day {self.Day}"), None, furthestAbleToGo.CurrentState)
@@ -95,11 +96,7 @@ class Journal:
         self.SetStateToPlan(TodaysEndPlan)
         self.BestPlan = newBest
 
-        # print("Current Plan");
-        # print(furthestAbleToGo)
-        
         self.Day += 1
-
         return
 
     def DoEvents(self):

@@ -100,6 +100,7 @@ OriginalGoal : StateType = {
 
 
 # Things that aren't arguments, but can be used to make Operations more generic
+# x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
 Known_Fudges = ["x", "y", "c", "h"]
 Special_Locations = ["Inventory", "Far Away"]
 

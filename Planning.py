@@ -12,7 +12,7 @@ from Operation import Action, Event
 from State import EventType, IsSpecialLocation, Special_Locations, StateType, Operators, Known_Fudges
 
 
-# x is where the Actor is currently, y are Locations the Actor can go to, c is climb, h is height
+
 def find_things(State : StateType, Goal : StateType):
     Known_Things = set();
     Known_Locations = set();
@@ -25,12 +25,13 @@ def find_things(State : StateType, Goal : StateType):
                         Known_Locations.add(thing[1])
                 else:
                     Known_Things.add(thing)
-
     return (Known_Things, Known_Locations);
 
-# Find States of things that don't exist in the Initial State, but can exist
-# For example, Grasp affects "have", but "have" is not in the Initial State
 def build_state(State: StateType):
+    """
+    Find States of things that don't exist in the Initial State, but can exist
+    For example, Grasp affects "have", but "have" is not in the Initial State
+    """
     for Operator in Operators:
         for Effect in Operators[Operator]["Effect"]:
             if Effect not in State:
@@ -53,22 +54,7 @@ def build_goal(State : StateType, Goal : StateType) -> StateType:
                 continue # I don't need to do anything more
             else:
                 score += 1
-                if type(thing) == tuple:
-                    fudged = False
-                    # Find Values to Fudge
-                    # for fudge in Goal_Fudge:
-                    #     if(fudge[0] == thing[0]):
-                    #         # Better way to do this?
-                    #         Goal_Fudge[Goal_Fudge.index(fudge)] = thing
-                    #         fudged = True
-
-                    #         break
-                    
-                    if not fudged:  
-                        Goal_State[Type].append(thing)
-
-                else:
-                    Goal_State[Type].append(thing)
+                Goal_State[Type].append(thing)
 
     return Goal_State
 
@@ -87,12 +73,12 @@ def distance_between(State_A, State_B ) -> int:
                 missing.append(thing)
                 score += 1
 
-    #print(missing)
     return len(missing)
 
 def check_goal(State : StateType, Goal : StateType) -> bool:
-    # If all goal outcomes are in the current state
-    #return all([True for outcome in Goal[kind] if outcome in State[kind]] for kind in Goal)
+    """If all goal outcomes are in the current state.
+    return all([True for outcome in Goal[kind] if outcome in State[kind]] for kind in Goal)
+    """
 
     ## Find any things that are not true
     for operator in Goal:
@@ -107,7 +93,6 @@ def Check_Operation(State, Operation : Action):
     Check if a certain Operation is Valid on the given State
 
     """
-    #print(f"Operation: {Operator}, Args: {Args}")
     # Define Substitutions
     Substitutions = Operation.Substitutions
     Requires = Operation.Requires
@@ -117,27 +102,20 @@ def Check_Operation(State, Operation : Action):
         for req in Requires[Type]:
             # Substitute any Known Values
             req = Operation.check_and_substitute(req)
-
             # Find any unknown values left over
             unknowns = [val in Known_Fudges for val in req]
             # If they're all unknown, I have no clue what it should be
             if all(unknowns):
-                #print("Many Unknowns")
                 continue
             # If some are unknown, Find them out
             if any(unknowns):
-                #print("Some Unknowns")
                 for x in req:
                     x = Operation.check_and_substitute_value(x)
                     if x in Known_Fudges:
-                        
-                        #print(x)
-                        #print(State[Type])
-                        
                         # Find the Value
                         thing = [val for val in State[Type] if req[0] == val[0]]
+                        # If we can't find it
                         if len(thing) == 0:
-                            # print(f"Cannot find {req}")
                             return False
                         # Update the Substitutions
                         Substitutions[x] = thing[0][1]
@@ -151,8 +129,6 @@ def Check_Operation(State, Operation : Action):
         for req in Requires[require_type]:
             req = Operation.check_and_substitute(req)
             if req not in State[require_type]:
-                #current_value = [val for val in State[require_type] if req[0] == val[0]]
-                #print(f"""Cannot Complete Check Requirement\n\tRequirement: {req}\n\tCurrent State: {current_value[:]}""")
                 return False
 
     return True
@@ -161,7 +137,6 @@ def DoOperation(OriginalState : dict[str, dict], Operation : Action, already_che
     """
     Apply an Operation to a Given State, optionally bypassing validity checks
     """
-    #print(f"Operation: {Operator}")
     State = copy.deepcopy(OriginalState)
     # Define Substitutions
     Substitutions = Operation.Substitutions
@@ -199,18 +174,19 @@ def DoOperation(OriginalState : dict[str, dict], Operation : Action, already_che
             for req in Requires[require_type]:
                 req = Operation.check_and_substitute(req)
                 if req not in State[require_type]:
-                    print("Cannot Complete Act Requirement")
-                    print(f"Requirement: {req}")
-                    print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
-                    print(Substitutions)
+                    try:
+                        print(f"Cannot Complete Act Requirement")
+                        print(f"Requirement: {req}")
+                        print(f"Current State: {[val for val in State[require_type] if req[0] == val[0]][0]}")
+                        print(Substitutions)
+                    except:
+                        pass
                     return OriginalState
 
     # Act Out the Operation
-    #print(f"Act out {Operator}")
     for action_type in Effect:
         for action in Effect[action_type]:
             thing, Not = Operation.check_and_substitute_tuple(action, True)
-            #print(action, thing, Not)
             compare = State[action_type]
             # If In But is Not
             if thing in compare:
@@ -292,17 +268,11 @@ def find_options(State: StateType) -> StateType:
                 out.append(complete_guesses[jndex][index])
             good_args.append(out)
 
-        #print(f"{operator}\n{get_at(State,'Actor')}") 
-        #print(f"Good: {good_args}")
         # Try each good arg
         valid_args = []
         for args in good_args:
             if Check_Operation(State, Action(operator, args)):
                 valid_args.append(args)
-
-        #print(f"Args: {valid_args}")
-
-        #print(f"{operator}:\n{Guesses}\n{complete_guesses}\n{good_args}\n{valid_args}")
 
         current_options[operator] = valid_args
 

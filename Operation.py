@@ -8,7 +8,7 @@ class Operation:
         A Basic Operation. Stores the Operator Performed, and any Arguments given for it.\n
         Does not check if the Operation is valid in the current state.
     '''
-    def __init__(this, ChosenActionSheet, OperatorName : str, Args : list = []):
+    def __init__(this, ChosenActionSheet: Dict[str, StateType], OperatorName : str, Args : list = []):
         this.Operator = OperatorName;
         this.Arguments = Args;
         this.Requires = None;
