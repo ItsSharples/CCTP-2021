@@ -112,8 +112,6 @@ class Journal:
 
         self.Days[self.Day-1] = (self.Days[self.Day-1][0], Events)
 
-        # TodaysEndPlan = Plan(Action("Start", f"Day {self.Day - 1}"), None, EventPlan.CurrentState)
-        # self.SetStateToPlan(TodaysEndPlan)
         self.SetStateToPlan(EventPlan)
         if self.BestPlan == None:
             self.BestPlan = EventPlan
