@@ -8,14 +8,20 @@ StateType = Dict[str, StateContents]
 Operator = Dict[str, Union[StateType, List]]
 EventType = Dict[str, Union[StateType, List]]
 
+StartingState : StateType
+Operators : Dict[str, Operator]
+Events: Dict[str, EventType]
+OriginalGoal : StateType
 
-StartingState : StateType = {
+StartingState = {
 	"at" : [("Actor", "Home"), ("Scarecrow", "Field"), ("Tools", "Shed"), ("Seeds", "Shed")],
 	"graspable" : ["Tools", "Seeds"],
-	"farmable" : ["Crops"]
+	"farmable" : ["Trees", "Crops"],
+	"cookable" : ["Crops"],
+	"consumable" : ["Food"]
 }
 
-Operators : Dict[str, Operator] = {
+Operators = {
 	"Go" : {
 	"Arguments" : ["x", "y"],
 	"Requires": {
@@ -44,8 +50,7 @@ Operators : Dict[str, Operator] = {
         "at" : [("Actor", "x"), ("drop", "Inventory")]
         },
 	"Effect" : {
-		"at" : [("drop", "x"), ("drop", "Inventory", "Not")],
-		"have" : [("Actor", "drop", "Not")]
+		"at" : [("drop", "x"), ("drop", "Inventory", "Not")]
 	}
 	},
 # Farming Stuff
@@ -58,20 +63,63 @@ Operators : Dict[str, Operator] = {
 		"at" : [("Crops", "Field"), ("seed", "Inventory", "Not")]
 	}
 	},
-
 	"Farm" : {
 	"Arguments" : ["crop"],
 	"Requires" : {
-		"at" : [("crop", "x"), ("Tools", "Inventory"), ("Actor", "Field")],
+		"at" : [("crop", "x"), ("Tools", "Inventory"), ("Actor", "x")],
 		"farmable" : ["crop"]
 	},
 	"Effect" : {
-		"at" : [("crop", "x", "Not"), ("crop", "Inventory")]
-	}
-	}
+		"at" : [("crop", "x", "Not"), ("crop", "Inventory"), ("Seeds", "Field")],
+		"hungry" : [("Actor", "is")]
+	}},
+
+	"Plant" : {
+	"Arguments" : ["sapling"],
+	"Requires" : {
+		"at" : [("Actor", "Forest"), ("sapling", "Inventory")]
+	},
+	"Effect" : {
+		"at" : [("Tree", "Forest"), ("sapling", "Inventory", "Not")]
+	}},
+	"Chop" : {
+	"Arguments" : ["tree"],
+	"Requires" : {
+		"at" : [("tree", "x"), ("Tools", "Inventory"), ("Actor", "Forest")],
+		"farmable" : ["tree"]
+	},
+	"Effect" : {
+		"at" : [("tree", "x", "Not"), ("Logs", "Forest")],
+		"hungry" : [("Actor", "is")]
+	}},
+# Food Eating
+	"Cook" : {
+	"Arguments" : ["crop"],
+	"Requires" : {
+		"at" : [("crop", "Inventory"), ("Actor", "Home")],
+		"cookable" : ["crop"]
+	},
+	"Effect" : {
+		"at" : [("crop", "Inventory", "Not"), ("Food", "Home")]
+	}},
+	# "Eat" : {
+	# "Arguments" : ["food"],
+	# "Requires" : {
+	# 	"at" : [("food", "Inventory")],
+	# 	"consumable" : ["food"]
+	# },
+	# "Effect" : {
+	# 	"at" : [("food", "Inventory", "Not")],
+	# 	"hungry" : [("Actor", "is", "Not")]
+	# }},
 }
 
-Events: Dict[str, EventType] = {
+OriginalGoal = {
+	"at" : [("Actor", "Field"), ("Crops", "Home"), ("Tools", "Shed")],
+}
+####################################################
+
+Events = {
 	"Move" : {
 		"Arguments" : ["thing", "x", "y"],
 		"Infers" : ["x"],
@@ -88,13 +136,6 @@ Events: Dict[str, EventType] = {
 			"at" : [("Scarecrow", "x", "Not"), ("Scarecrow", "Far Away")]
 		}
 	}
-}
-
-
-
-
-OriginalGoal : StateType = {
-	"at" : [("Actor", "Field"), ("Crops", "Home"), ("Tools", "Shed")],
 }
 ####################################################
 
