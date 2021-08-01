@@ -18,11 +18,12 @@ def main():
         currentJournal.DoDay();
         currentJournal.DoEvents();
     print("--- End Search ----")
-    print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.NumSteps}: {currentJournal.NumActionsTaken} Steps [{currentJournal.EventsEncountered} Events]) to complete the Task")
+    print(f"Took {currentJournal.DaysPassed} Days ({currentJournal.NumSteps} Steps: [{currentJournal.NumActionsTaken} Actions, {currentJournal.EventsEncountered} Events]) to complete the Task")
     print(f"Expects ({currentJournal.ExpectedCount})")
     print([day.__repr__() for day in currentJournal.Days])
     print(currentJournal.CompletePlan)
-
+    print("--- Final State ---")
+    print(currentJournal.CompletePlan.CurrentState)
     print("--- End Program ---")
     
 
