@@ -15,8 +15,10 @@ OriginalGoal : StateType
 
 StartingState = {
 	"at" : [("Actor", "Home"), ("Scarecrow", "Field"), ("Tools", "Shed"), ("Seeds", "Shed")],
-	"graspable" : ["Tools", "Seeds"],
-	"farmable" : ["Trees", "Crops"],
+	"graspable" : ["Tools", "Seeds", "Logs", "Food"],
+	"plantable" : ["Seeds"],
+	"farmable" : ["Crops"],
+	"chopable" : ["Trees"],
 	"cookable" : ["Crops"],
 	"consumable" : ["Food"]
 }
@@ -66,7 +68,7 @@ Operators = {
 	"Farm" : {
 	"Arguments" : ["crop"],
 	"Requires" : {
-		"at" : [("crop", "x"), ("Tools", "Inventory"), ("Actor", "x")],
+		"at" : [("crop", "x"), ("Tools", "Inventory"), ("Actor", "Field")],
 		"farmable" : ["crop"]
 	},
 	"Effect" : {
@@ -74,34 +76,35 @@ Operators = {
 		"hungry" : [("Actor", "is")]
 	}},
 
-	"Plant" : {
-	"Arguments" : ["sapling"],
-	"Requires" : {
-		"at" : [("Actor", "Forest"), ("sapling", "Inventory")]
-	},
-	"Effect" : {
-		"at" : [("Tree", "Forest"), ("sapling", "Inventory", "Not")]
-	}},
-	"Chop" : {
-	"Arguments" : ["tree"],
-	"Requires" : {
-		"at" : [("tree", "x"), ("Tools", "Inventory"), ("Actor", "Forest")],
-		"farmable" : ["tree"]
-	},
-	"Effect" : {
-		"at" : [("tree", "x", "Not"), ("Logs", "Forest")],
-		"hungry" : [("Actor", "is")]
-	}},
+	# "Plant" : {
+	# "Arguments" : ["sapling"],
+	# "Requires" : {
+	# 	"at" : [("Actor", "Forest"), ("sapling", "Inventory")],
+	# 	"plantable" : ["sapling"]
+	# },
+	# "Effect" : {
+	# 	"at" : [("Trees", "Forest"), ("sapling", "Inventory", "Not")]
+	# }},
+	# "Chop" : {
+	# "Arguments" : ["tree"],
+	# "Requires" : {
+	# 	"at" : [("tree", "x"), ("Tools", "Inventory"), ("Actor", "Forest")],
+	# 	"chopable" : ["tree"]
+	# },
+	# "Effect" : {
+	# 	"at" : [("tree", "x", "Not"), ("Logs", "Forest")],
+	# 	"hungry" : [("Actor", "is")]
+	# }},
 # Food Eating
-	"Cook" : {
-	"Arguments" : ["crop"],
-	"Requires" : {
-		"at" : [("crop", "Inventory"), ("Actor", "Home")],
-		"cookable" : ["crop"]
-	},
-	"Effect" : {
-		"at" : [("crop", "Inventory", "Not"), ("Food", "Home")]
-	}},
+	# "Cook" : {
+	# "Arguments" : ["crop"],
+	# "Requires" : {
+	# 	"at" : [("crop", "Inventory"), ("Actor", "Home")],
+	# 	"cookable" : ["crop"]
+	# },
+	# "Effect" : {
+	# 	"at" : [("crop", "Inventory", "Not"), ("Food", "Home")]
+	# }},
 	# "Eat" : {
 	# "Arguments" : ["food"],
 	# "Requires" : {
